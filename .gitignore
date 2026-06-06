@@ -1,0 +1,21 @@
+# Ambienti virtuali
+venv/
+ENV/
+env/
+
+# Credenziali sensibili
+.env
+
+# Cache di Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Cartelle di test e modelli (evitiamo file pesanti su git)
+test_images/
+models/
+
+# File di configurazione dell'IDE
+.vscode/
+.idea/
