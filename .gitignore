@@ -14,7 +14,7 @@ __pycache__/
 
 # Cartelle di test e modelli (evitiamo file pesanti su git)
 test_images/
-models/
+
 
 # File di configurazione dell'IDE
 .vscode/
