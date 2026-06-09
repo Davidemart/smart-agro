@@ -36,18 +36,18 @@ def main():
         print(f"Errore: Cartella di test non trovata in {test_dir}")
         return
 
-    # Carica le labels originali
+    # Inizializza le labels originali
+    original_labels = None
     if os.path.exists(labels_path):
         original_labels = load_labels(labels_path)
         print(f"Classi attese (da labels.txt): {original_labels}")
     else:
-        print(f"Attenzione: file labels {labels_path} non trovato.")
+        print(f"Attenzione: file labels {labels_path} non trovato. Verrà usato l'ordine alfabetico di default.")
 
     # Carica il modello Keras usando tf_keras (Keras 2 nativo) per evitare i bug di compatibilità di Keras 3
     print("\nCaricamento del modello...")
     model = keras.models.load_model(model_path, compile=False) 
 
-    
     # Dimensione di input tipica per modelli Teachable Machine
     input_shape = (224, 224)
     
@@ -60,16 +60,18 @@ def main():
     test_datagen = ImageDataGenerator(preprocessing_function=preprocess_tm)
     
     # Caricamento immagini di test
+    # CORREZIONE: Forziamo il parametro 'classes' a seguire l'ordine di labels.txt
     test_generator = test_datagen.flow_from_directory(
         test_dir,
         target_size=input_shape,
         batch_size=32,
         class_mode='categorical',
-        shuffle=False # IMPERATIVO: non mescolare i dati per mantenere la corrispondenza con le labels vere nella confusion matrix
+        shuffle=False, # IMPERATIVO: non mescolare i dati per mantenere la corrispondenza con le labels vere
+        classes=original_labels 
     )
 
     if test_generator.samples == 0:
-        print("Nessuna immagine trovata nel Test_set.")
+        print("Nessuna immagine trovata nel Test_set. Verifica che i nomi delle cartelle corrispondano esattamente alle labels.")
         return
 
     print("\nCalcolo delle predizioni sui dati di test...")
@@ -79,7 +81,7 @@ def main():
     y_pred = np.argmax(predictions, axis=1)
     y_true = test_generator.classes
 
-    # Mappa le classi estratte dal generatore (che sono in ordine alfabetico delle cartelle)
+    # Mappa le classi estratte dal generatore (che ora seguono l'ordine corretto)
     class_indices = test_generator.class_indices
     index_to_class = {v: k for k, v in class_indices.items()}
     generator_labels = [index_to_class[i] for i in range(len(index_to_class))]
