@@ -1,0 +1,53 @@
+{
+  "isRegexp": false,
+  "isEnum": false,
+  "allowFuzzyExtraction": false,
+  "name": "supporto",
+  "automatedExpansion": false,
+  "entries": [
+    {
+      "value": "acqua",
+      "synonyms": [
+        "acqua",
+        "irrigazione",
+        "annaffiare"
+      ]
+    },
+    {
+      "value": "sole",
+      "synonyms": [
+        "sole",
+        "luce",
+        "esposizione"
+      ]
+    },
+    {
+      "value": "preservare",
+      "synonyms": [
+        "preservare",
+        "proteggere",
+        "conservare",
+        "evitare la seccatura",
+        "evitare l'ingiallimento"
+      ]
+    },
+    {
+      "value": "concime",
+      "synonyms": [
+        "concime",
+        "concimazione",
+        "concimare",
+        "letame"
+      ]
+    },
+    {
+      "value": "piantare",
+      "synonyms": [
+        "piantare",
+        "piantarla"
+      ]
+    }
+  ],
+  "id": "113562eb-3b3c-4069-bc07-00cd7dabd624",
+  "isOverridable": false
+}

@@ -1,0 +1,304 @@
+{
+  "id": "bbbd332b-36ad-4d13-a06b-4aab239ea798",
+  "name": "AnalizzaSerra",
+  "auto": true,
+  "condition": "",
+  "conditionalFollowupEvents": [],
+  "conditionalResponses": [],
+  "context": [],
+  "contexts": [],
+  "endInteraction": false,
+  "events": [],
+  "fallbackIntent": false,
+  "liveAgentHandoff": false,
+  "parentId": null,
+  "followUpIntents": [],
+  "priority": 500000,
+  "responses": [
+    {
+      "action": "",
+      "affectedContexts": [],
+      "parameters": [
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "azione",
+          "dataType": "@azione",
+          "isList": true,
+          "required": true,
+          "prompts": [
+            "Cosa posso fare per te?",
+            "Come ti posso aiutare?"
+          ],
+          "value": "$azione",
+          "outputDialogContexts": []
+        },
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "specie_vegetale",
+          "dataType": "@specie_vegetale",
+          "isList": true,
+          "required": false,
+          "prompts": [],
+          "value": "$specie_vegetale",
+          "outputDialogContexts": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "messages": [
+        {
+          "type": "message",
+          "condition": "",
+          "speech": [
+            "$specie_vegetale $number sta bene",
+            "Sembra tutto ok"
+          ]
+        }
+      ],
+      "resetContexts": false
+    }
+  ],
+  "rootParentId": null,
+  "templates": [],
+  "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come stanno",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " le ",
+          "userDefined": false
+        },
+        {
+          "text": "piante d'alloro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "ffcb46ac-c50b-4fca-bb45-63f7ff4852a2",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come stanno",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " le ",
+          "userDefined": false
+        },
+        {
+          "text": "piante di pomdoro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "1301f9ab-af57-4959-81ce-c5b5a6281b34",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Quante",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "piante di pomodoro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ci sono?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "4143f029-74d1-4992-a0c3-46889e0e5d80",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Quanti",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "pomodori",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ci sono?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "96f7a463-e0c6-4072-9acd-8f649a153e1b",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come stanno",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " i ",
+          "userDefined": false
+        },
+        {
+          "text": "pomodori",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "415fc32a-e0be-4646-b980-5e77798be2b8",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Fai una ",
+          "userDefined": false
+        },
+        {
+          "text": "verifica",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " generale",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "e3f560d5-4eb0-4fc5-997b-c4a969d4015b",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come stanno",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " le ",
+          "userDefined": false
+        },
+        {
+          "text": "colture",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "f42d0ca3-169b-4a32-9fd4-a9c857cecf9a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Controlla",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " tutte le ",
+          "userDefined": false
+        },
+        {
+          "text": "piante",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "dacd0d29-2514-4dd7-abda-d0426214302a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Analizza",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " la serra",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "041c8c84-a4e2-4f5d-b23d-3cab98ec5386",
+      "updated": null
+    }
+  ],
+  "webhookForSlotFilling": false,
+  "webhookUsed": true
+}

@@ -1,0 +1,203 @@
+{
+  "id": "e0c00a93-614d-4002-ae6f-f6b0f3b08184",
+  "name": "ConsigliSpecie",
+  "auto": true,
+  "condition": "",
+  "conditionalFollowupEvents": [],
+  "conditionalResponses": [],
+  "context": [
+    "AnalizzaPianta"
+  ],
+  "contexts": [
+    "AnalizzaPianta"
+  ],
+  "endInteraction": false,
+  "events": [],
+  "fallbackIntent": false,
+  "liveAgentHandoff": false,
+  "parentId": null,
+  "followUpIntents": [],
+  "priority": 500000,
+  "responses": [
+    {
+      "action": "",
+      "affectedContexts": [
+        {
+          "name": "AnalizzaPianta",
+          "lifespan": 20
+        }
+      ],
+      "parameters": [
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "specie_vegetale",
+          "dataType": "@specie_vegetale",
+          "isList": false,
+          "required": false,
+          "prompts": [],
+          "value": "$specie_vegetale",
+          "outputDialogContexts": []
+        },
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "supporto",
+          "dataType": "@supporto",
+          "isList": false,
+          "required": true,
+          "prompts": [
+            "Come posso aiutarti con questa pianta?"
+          ],
+          "value": "$supporto",
+          "outputDialogContexts": []
+        }
+      ],
+      "defaultResponsePlatforms": {},
+      "messages": [
+        {
+          "type": "message",
+          "condition": "",
+          "speech": []
+        }
+      ],
+      "resetContexts": false
+    }
+  ],
+  "rootParentId": null,
+  "templates": [],
+  "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "La devo ",
+          "userDefined": false
+        },
+        {
+          "text": "concimare",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "d4ecdd01-3086-462e-b623-788b70be5dbe",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "La ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ha bisogno di più ",
+          "userDefined": false
+        },
+        {
+          "text": "acqua",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        }
+      ],
+      "count": 0,
+      "id": "cbd9aef7-d6b4-49e9-8552-5287459c1b55",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "La ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ha bisogno di più ",
+          "userDefined": false
+        },
+        {
+          "text": "luce",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "7a4a7637-a104-47a0-8c5b-04442b9f1c6e",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Meglio ",
+          "userDefined": false
+        },
+        {
+          "text": "piantarla",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " o lasciarla nel vaso?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "70e05976-fcd2-4467-9831-5059845534ed",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Ogni quanto devo ",
+          "userDefined": false
+        },
+        {
+          "text": "annaffiare",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " questa pianta?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "4df6b18b-a441-4f1d-b3db-28d3764fd3e6",
+      "updated": null
+    }
+  ],
+  "webhookForSlotFilling": false,
+  "webhookUsed": true
+}

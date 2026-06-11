@@ -1,0 +1,45 @@
+{
+  "isRegexp": false,
+  "isEnum": false,
+  "allowFuzzyExtraction": false,
+  "name": "azione",
+  "automatedExpansion": false,
+  "entries": [
+    {
+      "value": "analizza",
+      "synonyms": [
+        "analizza"
+      ]
+    },
+    {
+      "value": "conta",
+      "synonyms": [
+        "conta",
+        "quanti"
+      ]
+    },
+    {
+      "value": "identifica",
+      "synonyms": [
+        "identifica"
+      ]
+    },
+    {
+      "value": "controlla",
+      "synonyms": [
+        "controlla",
+        "come stanno",
+        "come sta"
+      ]
+    },
+    {
+      "value": "spiega",
+      "synonyms": [
+        "spiega",
+        "dimmi di più"
+      ]
+    }
+  ],
+  "id": "b22d730c-ebbe-48fe-8668-b3118c9a9fbc",
+  "isOverridable": false
+}

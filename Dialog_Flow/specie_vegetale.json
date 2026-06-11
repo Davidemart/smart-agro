@@ -1,0 +1,51 @@
+{
+  "isRegexp": false,
+  "isEnum": false,
+  "allowFuzzyExtraction": false,
+  "name": "specie_vegetale",
+  "automatedExpansion": false,
+  "entries": [
+    {
+      "value": "alloro",
+      "synonyms": [
+        "alloro",
+        "pianta d'alloro"
+      ]
+    },
+    {
+      "value": "pomodoro",
+      "synonyms": [
+        "pomodoro",
+        "pomodori",
+        "pianta di pomodoro",
+        "piante di pomodoro"
+      ]
+    },
+    {
+      "value": "basilico",
+      "synonyms": [
+        "basilico"
+      ]
+    },
+    {
+      "value": "rosmarino",
+      "synonyms": [
+        "rosmarino",
+        "pianta di rosmarino"
+      ]
+    },
+    {
+      "value": "pianta",
+      "synonyms": [
+        "pianta",
+        "piantina",
+        "colture",
+        "coltura",
+        "piante",
+        "piantine"
+      ]
+    }
+  ],
+  "id": "feacce94-29fd-4fec-8fef-4c348f92c867",
+  "isOverridable": false
+}
