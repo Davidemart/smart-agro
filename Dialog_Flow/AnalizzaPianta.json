@@ -87,6 +87,44 @@
           "meta": "@azione"
         },
         {
+          "text": " l'",
+          "userDefined": false
+        },
+        {
+          "text": "alloro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "2",
+          "userDefined": false,
+          "alias": "number",
+          "meta": "@sys.number"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "f77965e5-1203-4ea8-a377-3d3883235e2a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
           "text": " la ",
           "userDefined": false
         },

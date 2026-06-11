@@ -70,6 +70,122 @@
       "isTemplate": false,
       "data": [
         {
+          "text": "Quanti",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "rosmarini",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ci sono?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "449750eb-ac84-4d03-9598-28d2e2d350a8",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Fai una ",
+          "userDefined": false
+        },
+        {
+          "text": "verifica",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " delle ",
+          "userDefined": false
+        },
+        {
+          "text": "piante d'alloro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "fa7a79b9-06cb-4226-88d1-68bad0407aa1",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Conta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " le ",
+          "userDefined": false
+        },
+        {
+          "text": "piantine",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " della serra",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "8c8dbd80-fb5e-4a9f-b830-59bd4c835705",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Vorrei sapere ",
+          "userDefined": false
+        },
+        {
+          "text": "come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " il ",
+          "userDefined": false
+        },
+        {
+          "text": "rosmarino",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "6a1ee044-7c5c-487b-8d84-07ab07c64560",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
           "text": "Come stanno",
           "userDefined": false,
           "alias": "azione",

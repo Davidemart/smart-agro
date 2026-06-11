@@ -75,6 +75,158 @@
       "isTemplate": false,
       "data": [
         {
+          "text": "Devo ",
+          "userDefined": false
+        },
+        {
+          "text": "annaffiare",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " di più?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "26569117-aa16-47f5-af0c-671022e4be60",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come faccio ad ",
+          "userDefined": false
+        },
+        {
+          "text": "evitare l'ingiallimento",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "a1c23b1c-7486-4bda-b431-fc4ead21ab85",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Ogni quanto va programmata l'",
+          "userDefined": false
+        },
+        {
+          "text": "irrigazione",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "d8b645ed-d1db-4a9b-b54b-0139f60d3588",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come posso ",
+          "userDefined": false
+        },
+        {
+          "text": "proteggere",
+          "userDefined": true,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " questa ",
+          "userDefined": false
+        },
+        {
+          "text": "coltura",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "16b2921d-d637-4e25-b9da-38a31ec423e2",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "La ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " riceve abbastanza ",
+          "userDefined": false
+        },
+        {
+          "text": "luce",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "2268d71c-26ce-4a17-84dc-9652f874bf1f",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Ha bisogno di ",
+          "userDefined": false
+        },
+        {
+          "text": "concimazione",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "b547bcb8-9f55-4188-9c79-51f2312e0cba",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
           "text": "La devo ",
           "userDefined": false
         },
