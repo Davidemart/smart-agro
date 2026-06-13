@@ -21,4 +21,5 @@ class Config:
     LABELS_PATH = os.getenv("LABELS_PATH", "models/labels.txt")
     
     # Camera settings
-    CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", 0))
+    _camera_idx = os.getenv("CAMERA_INDEX", "0")
+    CAMERA_INDEX = int(_camera_idx) if str(_camera_idx).isdigit() else _camera_idx

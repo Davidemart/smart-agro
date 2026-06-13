@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ### 3. Configurazione dell'Ambiente (.env)
 Crea il file di configurazione clonando quello di esempio:
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 Apri il file `.env` appena creato e compila i tuoi parametri, in particolare i dati di accesso MySQL:
 ```env

@@ -8,19 +8,27 @@ app = Flask(__name__)
 
 # Inizializzazione dei servizi a livello di bootstrap (fase di avvio)
 # Questo garantisce che i modelli vengano caricati in memoria una sola volta
+vision_service = None
+camera_service = None
+db_repository = None
+
+logger.info("Inizializzazione dei servizi durante il bootstrap del server...")
 try:
-    logger.info("Inizializzazione dei servizi durante il bootstrap del server...")
     vision_service = VisionService()
-    camera_service = CameraService()
-    db_repository = DBRepository()
-    logger.info("Servizi inizializzati con successo durante il bootstrap.")
 except Exception as e:
-    logger.critical(f"Errore critico durante il bootstrap dei servizi: {e}")
-    # Definiamo delle istanze nulle in caso di crash critico, per evitare il blocco all'importazione
-    # ma consentire al middleware degli errori di gestire la situazione a runtime.
-    vision_service = None
-    camera_service = None
-    db_repository = None
+    logger.critical(f"Errore inizializzazione VisionService: {e}")
+
+try:
+    camera_service = CameraService()
+except Exception as e:
+    logger.critical(f"Errore inizializzazione CameraService: {e}")
+
+try:
+    db_repository = DBRepository()
+except Exception as e:
+    logger.critical(f"Errore inizializzazione DBRepository (Il DB non è accessibile, verranno simulati i salvataggi): {e}")
+
+logger.info("Fase di bootstrap servizi completata.")
 
 
 def create_dialogflow_response(text_message):
@@ -45,8 +53,8 @@ def handle_analisi_pianta(parameters):
     Gestisce l'intento di analisi della pianta:
     Acquisisce il frame, esegue la pipeline di visione, salva i risultati e restituisce il testo.
     """
-    if vision_service is None or camera_service is None or db_repository is None:
-        raise RuntimeError("Servizi di backend non inizializzati correttamente a causa di un errore di boot.")
+    if vision_service is None or camera_service is None:
+        raise RuntimeError("Servizi di visione o camera non inizializzati. Controlla i log di avvio.")
 
     logger.info("Avvio del flusso 'AnalisiPianta'...")
     
@@ -63,13 +71,16 @@ def handle_analisi_pianta(parameters):
     
     # 3. Salvataggio su database MySQL (con gestione transazione/rollback)
     try:
-        db_repository.save_observation(
-            species_name=species,
-            health_status=health_status,
-            anomaly_pct=anomaly_pct,
-            seedling_count=seedling_count
-        )
-        db_saved_msg = "I dati sono stati salvati correttamente nel database."
+        if db_repository is not None:
+            db_repository.save_observation(
+                species_name=species,
+                health_status=health_status,
+                anomaly_pct=anomaly_pct,
+                seedling_count=seedling_count
+            )
+            db_saved_msg = "I dati sono stati salvati correttamente nel database."
+        else:
+            db_saved_msg = "(Salvataggio nel database saltato poiché MySQL è offline)."
     except Exception as db_err:
         logger.error(f"Impossibile salvare l'osservazione nel DB: {db_err}")
         db_saved_msg = "Attenzione: non è stato possibile salvare i dati nel database, ma l'analisi è stata completata."
