@@ -65,8 +65,16 @@ class CameraService:
                 return self._load_random_test_image()
                 
             logger.info(f"Frame acquisito da webcam fisica. Dimensioni: {frame.shape[1]}x{frame.shape[0]}")
-            return frame
             
+            # --- AGGIUNTA PER IL DEBUG ---
+            # Salva l'immagine catturata NELLA CARTELLA PRINCIPALE
+            debug_path = "debug_last_capture.jpg"
+            cv2.imwrite(debug_path, frame)
+            logger.info(f"Immagine di debug salvata come '{debug_path}'")
+            # -----------------------------
+            
+            return frame
+
         finally:
             cap.release()
             logger.info("Risorsa webcam fisica rilasciata.")

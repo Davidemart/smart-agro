@@ -114,8 +114,9 @@ def handle_saluto(parameters):
 # Mappa degli intenti registrati (Pattern Strategy)
 # La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
 INTENT_ROUTING = {
-    "AnalisiPianta": handle_analisi_pianta,
-    "Saluto": handle_saluto
+    "AnalizzaPianta": handle_analisi_pianta,
+    "Default Welcome Intent": handle_saluto,
+    "AnalizzaSerra": handle_analisi_pianta
 }
 
 # =====================================================================
