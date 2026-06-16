@@ -42,74 +42,84 @@ class DBRepository:
                 raise Error("Il database non è configurato o non è raggiungibile.")
         return self._pool.get_connection()
 
-    def get_or_create_plant(self, cursor, species_name):
+    def save_plants_from_serra(self, plants_data):
         """
-        Recupera il plant_id per una data specie o la inserisce se non esiste.
-        Utilizza un cursore già aperto all'interno di una transazione attiva.
-        """
-        # Prepared statements / query parametrizzata
-        select_query = "SELECT plant_id FROM plants WHERE name = %s"
-        cursor.execute(select_query, (species_name,))
-        result = cursor.fetchone()
-        
-        if result:
-            return result[0]
-        
-        # Se non esiste, la inseriamo
-        insert_query = "INSERT INTO plants (name) VALUES (%s)"
-        cursor.execute(insert_query, (species_name,))
-        return cursor.lastrowid
-
-    def save_observation(self, species_name, health_status, anomaly_pct, seedling_count):
-        """
-        Salva un'osservazione legata a una specie vegetale.
-        Implementa atomicità multi-tabella (ACID) con Rollback.
+        [AnalizzaSerra]
+        Salva o aggiorna la mappa della serra nella tabella 'plants'.
+        Usa 'ON DUPLICATE KEY UPDATE' così se la pianta in quella posizione 
+        era già stata registrata, ne aggiorna semplicemente la specie riconosciuta.
         """
         connection = None
         cursor = None
         try:
             connection = self._get_connection()
-            # Disabilita l'autocommit per gestire la transazione manualmente
             connection.autocommit = False
             cursor = connection.cursor()
 
-            # 1. Recupero o inserimento specie nella tabella 'plants'
-            plant_id = self.get_or_create_plant(cursor, species_name)
-            logger.info(f"Ottenuto plant_id={plant_id} per la specie '{species_name}'")
+            # La query inserisce la posizione e il nome. Se la posizione (UNIQUE) 
+            # esiste già, aggiorna il nome della specie.
+            upsert_query = """
+                INSERT INTO plants (position, name) 
+                VALUES (%s, %s) 
+                ON DUPLICATE KEY UPDATE name = VALUES(name)
+            """
+            
+            for p in plants_data:
+                # p["plant_id"] del dizionario Python corrisponde alla 'position' di YOLO
+                cursor.execute(upsert_query, (p["plant_id"], p["species"]))
 
-            # 2. Inserimento metriche nella tabella 'observations'
+            connection.commit()
+            logger.info("Tabella 'plants' aggiornata con successo dalla scansione della serra.")
+            return True
+            
+        except Error as e:
+            logger.error(f"Errore durante l'aggiornamento della tabella plants: {e}")
+            if connection:
+                connection.rollback()
+            raise e
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()
+
+
+    def save_single_observation(self, position, health_status, anomaly_pct, seedling_count):
+        """
+        [AnalizzaPianta]
+        Salva un'osservazione nella tabella 'observations' per una specifica posizione.
+        """
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            connection.autocommit = False
+            cursor = connection.cursor()
+
+            # 1. Recupera il plant_id (PK) reale basato sulla 'position' richiesta dall'utente
+            cursor.execute("SELECT plant_id FROM plants WHERE position = %s", (position,))
+            result = cursor.fetchone()
+            
+            if not result:
+                logger.warning(f"Nessuna pianta trovata alla posizione {position}. Assicurati di aver fatto prima AnalizzaSerra.")
+                return False
+                
+            real_plant_id = result[0]
+
+            # 2. Inserisce le metriche nella tabella observations
             insert_obs_query = """
                 INSERT INTO observations (plant_id, health_status, anomaly_pct, seedling_count)
                 VALUES (%s, %s, %s, %s)
             """
-            obs_data = (plant_id, health_status, anomaly_pct, seedling_count)
-            cursor.execute(insert_obs_query, obs_data)
+            cursor.execute(insert_obs_query, (real_plant_id, health_status, anomaly_pct, seedling_count))
             
-            # Conferma la transazione per entrambe le operazioni
             connection.commit()
-            logger.info(f"Salvataggio osservazione completato con successo nel DB per plant_id={plant_id}.")
+            logger.info(f"Osservazione salvata con successo per la posizione {position} (plant_id reale={real_plant_id}).")
             return True
             
         except Error as e:
-            logger.error(f"Errore durante l'operazione sul database: {e}")
+            logger.error(f"Errore salvataggio osservazione: {e}")
             if connection:
-                try:
-                    logger.warning("Esecuzione rollback della transazione SQL a causa del fallimento.")
-                    connection.rollback()
-                except Error as rollback_err:
-                    logger.error(f"Errore durante il rollback: {rollback_err}")
+                connection.rollback()
             raise e
-            
         finally:
-            # Rilascio rigoroso delle risorse
-            if cursor:
-                try:
-                    cursor.close()
-                except Exception as e:
-                    logger.error(f"Errore nella chiusura del cursore: {e}")
-            if connection:
-                try:
-                    connection.close() # Restituisce la connessione al pool
-                    logger.info("Connessione restituita al pool con successo.")
-                except Exception as e:
-                    logger.error(f"Errore nella chiusura della connessione: {e}")
+            if cursor: cursor.close()
+            if connection: connection.close()

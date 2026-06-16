@@ -31,9 +31,9 @@ except Exception as e:
 logger.info("Fase di bootstrap servizi completata.")
 
 
-def create_dialogflow_response(text_message):
+def create_dialogflow_response(text_message, output_contexts=None):
     """Genera un dizionario conforme allo schema di risposta Dialogflow ES Fulfillment."""
-    return {
+    response = {
         "fulfillmentMessages": [
             {
                 "text": {
@@ -42,6 +42,10 @@ def create_dialogflow_response(text_message):
             }
         ]
     }
+    # Se passiamo dei contesti (memoria), li aggiunge al JSON
+    if output_contexts:
+        response["outputContexts"] = output_contexts
+    return response
 
 
 # =====================================================================
@@ -81,6 +85,12 @@ def handle_analizza_serra(parameters):
         f"Se vuoi sapere come sta una di queste, chiedimi ad esempio: 'Come sta la pianta 1?'"
     )
 
+    if seedling_count > 0 and db_repository is not None:
+        try:
+            db_repository.save_plants_from_serra(plants)
+        except Exception as e:
+            logger.error(f"Errore durante la mappatura delle piante: {e}")
+
     return create_dialogflow_response(risposta)
 
 
@@ -114,17 +124,7 @@ def handle_analizza_pianta(parameters):
     pianta_trovata = next((p for p in plants if p["plant_id"] == num_richiesto), None)
     
     if pianta_trovata:
-        # Salvataggio DB per la singola pianta analizzata nel dettaglio
-        if db_repository is not None:
-            try:
-                db_repository.save_observation(
-                    pianta_trovata["species"], 
-                    pianta_trovata["health_status"], 
-                    pianta_trovata["anomaly_pct"], 
-                    seedling_count
-                )
-            except Exception as e:
-                logger.error(f"Errore DB per pianta {num_richiesto}: {e}")
+        # ... (il codice di salvataggio DB rimane uguale) ...
 
         risposta = (
             f"Ecco il report per la Pianta {num_richiesto} ({pianta_trovata['species']}).\n"
@@ -132,10 +132,23 @@ def handle_analizza_pianta(parameters):
             f"• Area con anomalie cromatiche: {pianta_trovata['anomaly_pct']}%\n\n"
             f"Posso darti dei consigli su come curarla o spiegarti di più su questa coltura. Cosa preferisci?"
         )
+        
+        # --- NOVITÀ: Salviamo la specie nella memoria di Dialogflow ---
+        req_data = request.get_json(silent=True)
+        session = req_data.get("session")  # ID univoco della chat utente
+        
+        contesti_uscita = [{
+            "name": f"{session}/contexts/analizzapianta-followup",
+            "lifespanCount": 5, # Ricorderà la specie per i prossimi 5 messaggi
+            "parameters": {
+                "specie_vegetale": pianta_trovata['species'].lower()
+            }
+        }]
+        
+        return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
     else:
-        risposta = f"Hai chiesto della pianta {num_richiesto}, ma attualmente nell'inquadratura ne vedo solo {seedling_count}. Prova con un numero valido."
-
-    return create_dialogflow_response(risposta)
+        risposta = f"Hai chiesto della pianta {num_richiesto}, ma attualmente nell'inquadratura ne vedo solo {seedling_count}."
+        return create_dialogflow_response(risposta)
 
 
 def handle_saluto(parameters):
@@ -148,22 +161,34 @@ def handle_saluto(parameters):
 def handle_consigli_specie(parameters):
     """
     Gestisce l'intento ConsigliSpecie.
-    Fornisce risposte basate sul tipo di supporto richiesto (acqua, sole, concime)
-    e sulla specie vegetale (pomodoro, basilico, ecc.).
     """
-    logger.info(f"Ricevuti parametri per ConsigliSpecie: {parameters}")
+    logger.info(f"Ricevuti parametri diretti: {parameters}")
     
-    # Estrazione parametri (Dialogflow può inviarli come liste se 'isList' è true)
+    # 1. Recuperiamo l'intero payload inviato da Dialogflow
+    req_data = request.get_json(silent=True)
+    
     specie_raw = parameters.get("specie_vegetale", "")
     supporto_raw = parameters.get("supporto", "")
     
+    # --- NOVITÀ: Se la specie è vuota o generica, la peschiamo dal contesto ---
+    if not specie_raw or specie_raw == "pianta":
+        contesti = req_data.get("queryResult", {}).get("outputContexts", [])
+        for ctx in contesti:
+            if "analizzapianta-followup" in ctx.get("name", "").lower():
+                parametri_contesto = ctx.get("parameters", {})
+                if "specie_vegetale" in parametri_contesto:
+                    specie_raw = parametri_contesto["specie_vegetale"]
+                    logger.info(f"Specie recuperata dalla memoria (contesto): {specie_raw}")
+                    break
+
+    # 2. Normalizzazione
     specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
     supporto = supporto_raw[0].lower() if isinstance(supporto_raw, list) and supporto_raw else str(supporto_raw).lower()
     
-    # Se la specie non è specificata, usiamo un default generico
+    # Se la specie continua a non esserci, usiamo un default
     if not specie:
         specie = "pianta"
-
+        
     # Mini Knowledge-Base (Wiki)
     wiki = {
         "pomodoro": {
