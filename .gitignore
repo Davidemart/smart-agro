@@ -2,9 +2,7 @@
 venv/
 ENV/
 env/
-
-# Credenziali sensibili
-.env
+.venv/
 
 # Cache di Python
 __pycache__/
@@ -19,5 +17,4 @@ models/yolo/yolov4.weights
 .vscode/
 .idea/
 
- 
  
