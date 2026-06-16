@@ -11,8 +11,8 @@ class Config:
     
     # DB settings
     DB_HOST = os.getenv("DB_HOST", "localhost")
-    DB_USER = os.getenv("DB_USER", "root")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+    DB_USER = os.getenv("DB_USER", "academy_user") 
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "PasswordSicura123!") 
     DB_NAME = os.getenv("DB_NAME", "smart_agri")
     DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", 5))
     
