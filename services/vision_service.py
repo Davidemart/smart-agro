@@ -6,6 +6,14 @@ from config import Config
 from utils.logger import logger
 
 try:
+    import tf_keras as keras
+except ImportError:
+    try:
+        import tensorflow.keras as keras
+    except ImportError:
+        keras = None
+
+try:
     import tensorflow as tf
 except ImportError:
     tf = None
@@ -45,12 +53,12 @@ class VisionService:
         try:
             logger.info(f"Caricamento modello Keras da {self.model_path} in corso...")
             start_time = time.time()
-            if tf is not None:
+            if keras is not None:
                 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-                self.keras_model = tf.keras.models.load_model(self.model_path)
+                self.keras_model = keras.models.load_model(self.model_path)
                 logger.info(f"Modello Keras caricato con successo in {int((time.time() - start_time) * 1000)}ms.")
             else:
-                logger.error("Libreria TensorFlow non installata. Avvio in Mock Mode.")
+                logger.error("Libreria Keras/TensorFlow non installata. Avvio in Mock Mode.")
                 self.mock_mode = True
 
             with open(self.labels_path, "r", encoding="utf-8") as f:
@@ -192,7 +200,8 @@ class VisionService:
                     plant_data["species"] = "Basilico"
                     plant_data["confidence"] = 0.85
                 else:
-                    resized = cv2.resize(crop, (224, 224), interpolation=cv2.INTER_AREA)
+                    crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+                    resized = cv2.resize(crop_rgb, (224, 224), interpolation=cv2.INTER_AREA)
                     normalized = (resized.astype(np.float32) / 127.5) - 1.0
                     input_tensor = np.expand_dims(normalized, axis=0)
                     
