@@ -5,7 +5,8 @@ USE smart_agri;
 -- Tabella Plants
 CREATE TABLE IF NOT EXISTS plants (
     plant_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    position INT NOT NULL UNIQUE,   
+    name VARCHAR(100) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
