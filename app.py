@@ -48,60 +48,94 @@ def create_dialogflow_response(text_message):
 # HANDLERS DEGLI INTENTI (Pattern Strategy)
 # =====================================================================
 
-def handle_analisi_pianta(parameters):
+def handle_analizza_serra(parameters):
     """
-    Gestisce l'intento di analisi della pianta:
-    Acquisisce il frame, esegue la pipeline di visione, salva i risultati e restituisce il testo.
+    Gestisce l'intento AnalizzaSerra (Panoramica generale).
+    Restituisce solo il conteggio, la specie e la posizione di ogni pianta.
     """
     if vision_service is None or camera_service is None:
-        raise RuntimeError("Servizi di visione o camera non inizializzati. Controlla i log di avvio.")
+        raise RuntimeError("Servizi non inizializzati.")
 
-    logger.info("Avvio del flusso 'AnalisiPianta'...")
+    logger.info("Avvio flusso panoramica: AnalizzaSerra")
     
-    # 1. Cattura del frame dalla webcam
     frame = camera_service.capture_frame()
-    
-    # 2. Elaborazione tramite pipeline di visione (con timeout interno a 3500ms)
     analysis = vision_service.analyse_frame(frame)
     
-    species = analysis["species"]
-    anomaly_pct = analysis["anomaly_pct"]
     seedling_count = analysis["seedling_count"]
-    health_status = analysis["health_status"]
+    plants = analysis["plants"]
     
-    # 3. Salvataggio su database MySQL (con gestione transazione/rollback)
-    try:
-        if db_repository is not None:
-            db_repository.save_observation(
-                species_name=species,
-                health_status=health_status,
-                anomaly_pct=anomaly_pct,
-                seedling_count=seedling_count
-            )
-            db_saved_msg = "I dati sono stati salvati correttamente nel database."
-        else:
-            db_saved_msg = "(Salvataggio nel database saltato poiché MySQL è offline)."
-    except Exception as db_err:
-        logger.error(f"Impossibile salvare l'osservazione nel DB: {db_err}")
-        db_saved_msg = "Attenzione: non è stato possibile salvare i dati nel database, ma l'analisi è stata completata."
+    if seedling_count == 0 or not plants:
+        return create_dialogflow_response(
+            "Ho controllato la serra, ma non ho rilevato alcuna piantina. Prova a sistemare l'inquadratura."
+        )
 
-    # 4. Generazione della risposta dinamica
-    # Logica di fallback se la specie non è identificata
-    if species == "Specie Non Identificata":
-        suggestion = "\nSuggerimento: Prova a posizionare meglio la foglia o a migliorare l'illuminazione dell'ambiente."
-    else:
-        suggestion = ""
-
-    response_text = (
-        f"Analisi Smart-Agri completata.\n"
-        f"- Specie Vegetale: {species}\n"
-        f"- Stato Sanitario: {health_status}\n"
-        f"- Area con Anomalie: {anomaly_pct}%\n"
-        f"- Piantine Rilevate: {seedling_count}\n\n"
-        f"{db_saved_msg}{suggestion}"
+    # Crea un elenco puntato con posizione e specie
+    plant_reports = []
+    for plant in plants:
+        plant_reports.append(f"• Posizione {plant['plant_id']}: {plant['species']}")
+    
+    plants_summary = "\n".join(plant_reports)
+    risposta = (
+        f"Analisi generale della serra completata.\n"
+        f"Ho rilevato {seedling_count} piantine nell'inquadratura:\n{plants_summary}\n\n"
+        f"Se vuoi sapere come sta una di queste, chiedimi ad esempio: 'Come sta la pianta 1?'"
     )
+
+    return create_dialogflow_response(risposta)
+
+
+def handle_analizza_pianta(parameters):
+    """
+    Gestisce l'intento AnalizzaPianta (Dettaglio singola pianta).
+    Analizza lo stato di salute e le anomalie di una specifica posizione.
+    Imposta il contesto per le domande successive (consigli, wiki).
+    """
+    if vision_service is None or camera_service is None:
+        raise RuntimeError("Servizi non inizializzati.")
+
+    # Estrazione del parametro obbligatorio 'number' definito su Dialogflow
+    num_richiesto = parameters.get("number", "")
+    if isinstance(num_richiesto, list) and num_richiesto:
+        num_richiesto = int(num_richiesto[0])
+    elif num_richiesto:
+        num_richiesto = int(num_richiesto)
+    else:
+        return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero.")
+
+    logger.info(f"Avvio flusso dettaglio: AnalizzaPianta per la posizione {num_richiesto}")
+
+    frame = camera_service.capture_frame()
+    analysis = vision_service.analyse_frame(frame)
     
-    return create_dialogflow_response(response_text)
+    plants = analysis["plants"]
+    seedling_count = analysis["seedling_count"]
+
+    # Cerca la pianta con l'ID richiesto
+    pianta_trovata = next((p for p in plants if p["plant_id"] == num_richiesto), None)
+    
+    if pianta_trovata:
+        # Salvataggio DB per la singola pianta analizzata nel dettaglio
+        if db_repository is not None:
+            try:
+                db_repository.save_observation(
+                    pianta_trovata["species"], 
+                    pianta_trovata["health_status"], 
+                    pianta_trovata["anomaly_pct"], 
+                    seedling_count
+                )
+            except Exception as e:
+                logger.error(f"Errore DB per pianta {num_richiesto}: {e}")
+
+        risposta = (
+            f"Ecco il report per la Pianta {num_richiesto} ({pianta_trovata['species']}).\n"
+            f"• Stato di salute: {pianta_trovata['health_status']}\n"
+            f"• Area con anomalie cromatiche: {pianta_trovata['anomaly_pct']}%\n\n"
+            f"Posso darti dei consigli su come curarla o spiegarti di più su questa coltura. Cosa preferisci?"
+        )
+    else:
+        risposta = f"Hai chiesto della pianta {num_richiesto}, ma attualmente nell'inquadratura ne vedo solo {seedling_count}. Prova con un numero valido."
+
+    return create_dialogflow_response(risposta)
 
 
 def handle_saluto(parameters):
@@ -110,13 +144,67 @@ def handle_saluto(parameters):
         "Ciao! Sono l'assistente Smart-Agri. Posso avviare l'analisi delle tue piante in tempo reale. Dimmi pure quando procedere!"
     )
 
+#TODO: Nella wiki metteremo: nome scientifico, zona, info generali, ecc...
+def handle_consigli_specie(parameters):
+    """
+    Gestisce l'intento ConsigliSpecie.
+    Fornisce risposte basate sul tipo di supporto richiesto (acqua, sole, concime)
+    e sulla specie vegetale (pomodoro, basilico, ecc.).
+    """
+    logger.info(f"Ricevuti parametri per ConsigliSpecie: {parameters}")
+    
+    # Estrazione parametri (Dialogflow può inviarli come liste se 'isList' è true)
+    specie_raw = parameters.get("specie_vegetale", "")
+    supporto_raw = parameters.get("supporto", "")
+    
+    specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
+    supporto = supporto_raw[0].lower() if isinstance(supporto_raw, list) and supporto_raw else str(supporto_raw).lower()
+    
+    # Se la specie non è specificata, usiamo un default generico
+    if not specie:
+        specie = "pianta"
+
+    # Mini Knowledge-Base (Wiki)
+    wiki = {
+        "pomodoro": {
+            "acqua": "Il pomodoro necessita di annaffiature abbondanti e regolari, ma evita i ristagni e non bagnare le foglie.",
+            "sole": "I pomodori amano l'esposizione in pieno sole per maturare correttamente.",
+            "concime": "Usa un concime ricco di potassio e fosforo durante la fioritura.",
+            "preservare": "Per evitare l'ingiallimento e i funghi, garantisci un buon circolo d'aria e usa trattamenti rameici se necessario."
+        },
+        "basilico": {
+            "acqua": "Il basilico vuole un terreno sempre umido, ma ben drenato. Annaffialo la mattina presto.",
+            "sole": "Preferisce zone luminose ma al riparo dal sole diretto cocente delle ore centrali.",
+            "concime": "Un fertilizzante azotato ogni 15 giorni aiuta a mantenere le foglie rigogliose.",
+            "preservare": "Per preservare la pianta, cima i fiori appena spuntano: così le foglie manterranno il loro aroma."
+        },
+        "alloro": {
+            "acqua": "L'alloro resiste bene alla siccità. Annaffia solo quando il terreno è completamente asciutto.",
+            "sole": "Cresce bene sia al sole che a mezz'ombra.",
+            "concime": "Non richiede concimazioni frequenti; basta un po' di stallatico in primavera.",
+            "preservare": "Proteggilo dalle cocciniglie controllando periodicamente la pagina inferiore delle foglie."
+        }
+    }
+
+    # Risposta dinamica basata sui parametri
+    if specie in wiki and supporto in wiki[specie]:
+        risposta = f"🌿 Consigli per {specie.capitalize()} (Tema: {supporto}):\n{wiki[specie][supporto]}"
+    elif supporto:
+        risposta = f"In generale, per quanto riguarda '{supporto}', assicurati sempre di non esagerare per non stressare la pianta. Hai bisogno di dettagli su una specie in particolare come pomodoro o basilico?"
+    else:
+        risposta = "Non ho capito esattamente quale consiglio ti serve. Prova a chiedermi dell'acqua, del sole o del concime per una specifica pianta."
+
+    return create_dialogflow_response(risposta)
 
 # Mappa degli intenti registrati (Pattern Strategy)
 # La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
 INTENT_ROUTING = {
-    "AnalizzaPianta": handle_analisi_pianta,
     "Default Welcome Intent": handle_saluto,
-    "AnalizzaSerra": handle_analisi_pianta
+    "AnalizzaSerra": handle_analizza_serra,
+    "AnalizzaPianta": handle_analizza_pianta,
+    "ConsigliSpecie": handle_consigli_specie
+    #"WikiSpecie": handle_wiki_specie,         
+    #"ProblemiPianta": handle_problemi_pianta  
 }
 
 # =====================================================================

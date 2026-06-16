@@ -97,93 +97,33 @@ class VisionService:
             raise TimeoutError(f"Pipeline interrotta a causa di latenza eccessiva durante: {phase_name}")
 
     def analyse_frame(self, frame):
-        """Pipeline di analisi multimodale sul frame."""
+        """Pipeline di analisi multimodale orientata alla singola pianta."""
         pipeline_start = time.time()
-        logger.info("Avvio della pipeline di analisi dell'immagine...")
+        logger.info("Avvio della pipeline di analisi dell'immagine aggiornata (Ritaglio per singola pianta)...")
 
+        # Struttura dati di output aggiornata
         results = {
-            "species": "Specie Non Identificata",
-            "confidence": 0.0,
-            "anomaly_pct": 0.0,
             "seedling_count": 0,
-            "health_status": "Stato Sano"
+            "plants": []
         }
 
         # ==========================================
-        # FASE A: Classificazione Specie Vegetale (Keras)
+        # FASE 1: Object Detection (YOLOv4 nativo)
         # ==========================================
-        phase_a_start = time.time()
-        try:
-            if self.mock_mode:
-                results["species"] = "Basilico"
-                results["confidence"] = 0.85
-                logger.info("[FASE A - MOCK] Classificato come Basilico (conf: 85%)")
-            else:
-                resized = cv2.resize(frame, (224, 224), interpolation=cv2.INTER_AREA)
-                normalized = (resized.astype(np.float32) / 127.5) - 1.0
-                input_tensor = np.expand_dims(normalized, axis=0)
-                
-                predictions = self.keras_model.predict(input_tensor)
-                best_class_idx = np.argmax(predictions[0])
-                confidence = float(predictions[0][best_class_idx])
-                
-                results["confidence"] = confidence
-                if confidence < 0.60:
-                    results["species"] = "Specie Non Identificata"
-                else:
-                    results["species"] = self.labels[best_class_idx]
-                    logger.info(f"Classificato come: {results['species']} ({confidence*100:.1f}%)")
-        except Exception as e:
-            logger.error(f"Errore durante la classificazione Keras: {e}")
-
-        logger.info(f"Latenza Inferenza Keras: {int((time.time() - phase_a_start) * 1000)}ms")
-        self._check_timeout(pipeline_start, "Classificazione Keras")
-
-        # ==========================================
-        # FASE B: Segmentazione Anomalie Cromatiche (OpenCV)
-        # ==========================================
-        phase_b_start = time.time()
-        try:
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
-            upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
-            mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-            
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-            mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
-            
-            total_pixels = frame.shape[0] * frame.shape[1]
-            white_pixels = cv2.countNonZero(mask_final)
-            anomaly_pct = float((white_pixels / total_pixels) * 100.0)
-            
-            results["anomaly_pct"] = round(anomaly_pct, 2)
-            if anomaly_pct > 30.0:
-                results["health_status"] = "Critico - Rilevato forte ingiallimento"
-            else:
-                results["health_status"] = "Sano"
-        except Exception as e:
-            logger.error(f"Errore durante la segmentazione OpenCV: {e}")
-
-        logger.info(f"Latenza Segmentazione OpenCV: {int((time.time() - phase_b_start) * 1000)}ms")
-        self._check_timeout(pipeline_start, "Segmentazione OpenCV")
-
-        # ==========================================
-        # FASE C: Rilevamento Piantine (YOLOv4 nativo con OpenCV)
-        # ==========================================
-        phase_c_start = time.time()
+        phase_1_start = time.time()
+        boxes = []
         try:
             if self.yolo_net is None:
-                results["seedling_count"] = 2
-                logger.info("[FASE C - MOCK] Conteggio piantine simulato a 2.")
+                logger.info("[FASE 1 - MOCK] YOLO non disponibile. Simulazione: considero l'intero frame come 1 pianta.")
+                h, w = frame.shape[:2]
+                boxes = [[0, 0, w, h]]
             else:
                 h, w = frame.shape[:2]
-                # Generazione blob standard per YOLO (416x416)
                 blob = cv2.dnn.blobFromImage(frame, 1/255.0, (416, 416), swapRB=True, crop=False)
                 self.yolo_net.setInput(blob)
                 layer_outputs = self.yolo_net.forward(self.yolo_net.getUnconnectedOutLayersNames())
                 
-                boxes, confidences, class_ids = [], [], []
+                temp_boxes, confidences = [], []
                 
                 for output in layer_outputs:
                     for detection in output:
@@ -191,30 +131,108 @@ class VisionService:
                         class_id = np.argmax(scores)
                         confidence = scores[class_id]
                         
-                        # Soglia di confidenza al 50%
-                        if confidence > 0.5:
+                        if confidence > 0.4:
                             class_name = self.yolo_classes[class_id]
-                            # Filtro per contare solo piante o piante in vaso (Dataset COCO)
-                            if class_name in ["potted plant", "plant"]:
+                            if class_name in ["pottedplant", "potted plant", "plant"]:
                                 box = detection[0:4] * np.array([w, h, w, h])
                                 (centerX, centerY, width, height) = box.astype("int")
                                 x = int(centerX - (width / 2))
                                 y = int(centerY - (height / 2))
                                 
-                                boxes.append([x, y, int(width), int(height)])
+                                temp_boxes.append([x, y, int(width), int(height)])
                                 confidences.append(float(confidence))
-                                class_ids.append(class_id)
                 
-                # Applicazione Non-Maximum Suppression (NMS) per evitare doppi conteggi
-                indices = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-                results["seedling_count"] = len(np.array(indices).flatten()) if len(indices) > 0 else 0
-                logger.info(f"YOLO nativo ha rilevato {results['seedling_count']} piantine nel frame.")
+                # Applicazione Non-Maximum Suppression (NMS)
+                indices = cv2.dnn.NMSBoxes(temp_boxes, confidences, 0.5, 0.4)
+                if len(indices) > 0:
+                    for i in indices.flatten():
+                        boxes.append(temp_boxes[i])
+
+            results["seedling_count"] = len(boxes)
+            logger.info(f"YOLO ha rilevato {results['seedling_count']} piantine. Latenza: {int((time.time() - phase_1_start) * 1000)}ms")
                 
         except Exception as e:
-            logger.error(f"Errore durante l'Object Detection YOLOv4 nativo: {e}")
-            results["seedling_count"] = 0
+            logger.error(f"Errore durante l'Object Detection YOLO: {e}. Fallback a intero frame.")
+            h, w = frame.shape[:2]
+            boxes = [[0, 0, w, h]]
+            results["seedling_count"] = 1
 
-        logger.info(f"Latenza YOLOv4: {int((time.time() - phase_c_start) * 1000)}ms")
+        self._check_timeout(pipeline_start, "Object Detection YOLO")
+
+        # ==========================================
+        # FASE 2, 3 e 4: Cropping, Keras e OpenCV per singola pianta
+        # ==========================================
+        for idx, (x, y, w_box, h_box) in enumerate(boxes):
+            # Limite massimo di analisi per evitare timeout su Dialogflow
+            if idx >= 3:
+                logger.warning("Raggiunto il limite massimo di 3 piantine elaborabili per evitare timeout.")
+                break
+
+            # Assicuriamoci che le coordinate di crop non escano dai bordi
+            h_frame, w_frame = frame.shape[:2]
+            x1, y1 = max(0, x), max(0, y)
+            x2, y2 = min(w_frame, x + w_box), min(h_frame, y + h_box)
+
+            if x2 <= x1 or y2 <= y1:
+                continue # Salta crop non validi
+
+            crop = frame[y1:y2, x1:x2]
+            
+            plant_data = {
+                "plant_id": idx + 1,
+                "species": "Specie Non Identificata",
+                "confidence": 0.0,
+                "anomaly_pct": 0.0,
+                "health_status": "Sano"
+            }
+
+            # --- Classificazione Specie (Keras) sul Crop ---
+            try:
+                if self.mock_mode:
+                    plant_data["species"] = "Basilico"
+                    plant_data["confidence"] = 0.85
+                else:
+                    resized = cv2.resize(crop, (224, 224), interpolation=cv2.INTER_AREA)
+                    normalized = (resized.astype(np.float32) / 127.5) - 1.0
+                    input_tensor = np.expand_dims(normalized, axis=0)
+                    
+                    predictions = self.keras_model.predict(input_tensor)
+                    best_class_idx = np.argmax(predictions[0])
+                    confidence = float(predictions[0][best_class_idx])
+                    
+                    plant_data["confidence"] = confidence
+                    if confidence >= 0.60:
+                        plant_data["species"] = self.labels[best_class_idx]
+            except Exception as e:
+                logger.error(f"Errore Keras su pianta {idx+1}: {e}")
+
+            # --- Segmentazione Anomalie (OpenCV) sul Crop ---
+            try:
+                hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+                lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
+                upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
+                mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+                
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+                mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+                mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
+                
+                total_pixels = crop.shape[0] * crop.shape[1]
+                white_pixels = cv2.countNonZero(mask_final)
+                
+                if total_pixels > 0:
+                    anomaly_pct = float((white_pixels / total_pixels) * 100.0)
+                    plant_data["anomaly_pct"] = round(anomaly_pct, 2)
+                    if anomaly_pct > 30.0:
+                        plant_data["health_status"] = "Critico - Rilevato forte ingiallimento"
+            except Exception as e:
+                logger.error(f"Errore OpenCV su pianta {idx+1}: {e}")
+
+            # Salvataggio dati singola pianta e check timeout
+            results["plants"].append(plant_data)
+            logger.info(f"Analisi Pianta {idx+1} completata: {plant_data['species']}, {plant_data['anomaly_pct']}% anomalia.")
+            self._check_timeout(pipeline_start, f"Analisi Pianta {idx+1}")
+
         logger.info(f"Latenza Totale Pipeline: {int((time.time() - pipeline_start) * 1000)}ms")
         
         return results

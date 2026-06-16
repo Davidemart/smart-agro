@@ -1,0 +1,35 @@
+{
+  "name": "WikiSpecie",
+  "auto": true,
+  "contexts": [
+    "analizzapianta-followup"
+  ],
+  "responses": [
+    {
+      "resetContexts": false,
+      "affectedContexts": [
+        {
+          "name": "analizzapianta-followup",
+          "lifespan": 5
+        }
+      ],
+      "parameters": [
+        {
+          "name": "specie_vegetale",
+          "value": "#analizzapianta-followup.specie_vegetale",
+          "dataType": "@specie_vegetale",
+          "isList": false,
+          "required": false
+        }
+      ]
+    }
+  ],
+  "userSays": [
+    { "data": [ { "text": "Dimmi di più su questa coltura" } ], "isTemplate": false },
+    { "data": [ { "text": "Apri la wiki" } ], "isTemplate": false },
+    { "data": [ { "text": "Cos'è esattamente questa pianta?" } ], "isTemplate": false },
+    { "data": [ { "text": "Dammi informazioni generali" } ], "isTemplate": false },
+    { "data": [ { "text": "Parlami del " }, { "text": "pomodoro", "alias": "specie_vegetale", "meta": "@specie_vegetale" } ], "isTemplate": false }
+  ],
+  "webhookUsed": true
+}
