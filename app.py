@@ -97,49 +97,74 @@ def handle_analizza_serra(parameters):
 def handle_analizza_pianta(parameters):
     """
     Gestisce l'intento AnalizzaPianta (Dettaglio singola pianta).
-    Analizza lo stato di salute e le anomalie di una specifica posizione.
-    Imposta il contesto per le domande successive (consigli, wiki).
+    Analizza lo stato di salute cercando sia per NUMERO (posizione) che per NOME SPECIE.
     """
     if vision_service is None or camera_service is None:
         raise RuntimeError("Servizi non inizializzati.")
 
-    # Estrazione del parametro obbligatorio 'number' definito su Dialogflow
+    # 1. Estrazione dei due possibili parametri da Dialogflow
     num_richiesto = parameters.get("number", "")
-    if isinstance(num_richiesto, list) and num_richiesto:
-        num_richiesto = int(num_richiesto[0])
-    elif num_richiesto:
-        num_richiesto = int(num_richiesto)
+    specie_richiesta = parameters.get("specie_vegetale", "")
+
+    # Normalizzazione specie richiesta
+    if isinstance(specie_richiesta, list) and specie_richiesta:
+        specie_richiesta = str(specie_richiesta[0]).lower()
     else:
-        return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero.")
+        specie_richiesta = str(specie_richiesta).lower()
 
-    logger.info(f"Avvio flusso dettaglio: AnalizzaPianta per la posizione {num_richiesto}")
+    # Se non c'è né il numero né la specie, chiediamo chiarimenti
+    if not num_richiesto and (not specie_richiesta or specie_richiesta == "pianta"):
+        return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero o la sua specie.")
 
+    logger.info(f"Avvio flusso dettaglio: AnalizzaPianta (Numero richiesto: {num_richiesto}, Specie richiesta: {specie_richiesta})")
+
+    # 2. Cattura e analisi del frame corrente
     frame = camera_service.capture_frame()
     analysis = vision_service.analyse_frame(frame)
     
     plants = analysis["plants"]
     seedling_count = analysis["seedling_count"]
 
-    # Cerca la pianta con l'ID richiesto
-    pianta_trovata = next((p for p in plants if p["plant_id"] == num_richiesto), None)
+    # 3. Logica di ricerca flessibile (Risolve il bug!)
+    pianta_trovata = None
     
-    if pianta_trovata:
-        # ... (il codice di salvataggio DB rimane uguale) ...
+    if num_richiesto:
+        # Se l'utente ha detto il numero (es. "Pianta 1"), cerchiamo per ID posizione
+        num_richiesto = int(num_richiesto[0]) if isinstance(num_richiesto, list) else int(num_richiesto)
+        pianta_trovata = next((p for p in plants if p["plant_id"] == num_richiesto), None)
+    elif specie_richiesta:
+        # Se l'utente ha detto il nome (es. "Pomodoro"), cerchiamo la prima pianta di quella specie nella foto
+        pianta_trovata = next((p for p in plants if p["species"].lower() == specie_richiesta), None)
+        if pianta_trovata:
+            num_richiesto = pianta_trovata["plant_id"] # Recuperiamo il numero di posizione reale per il DB
 
+    # 4. Gestione del risultato e salvataggio
+    if pianta_trovata:
+        try:
+            db_repository.save_single_observation(
+                position=num_richiesto,
+                health_status=pianta_trovata["health_status"],
+                anomaly_pct=pianta_trovata["anomaly_pct"],
+                seedling_count=seedling_count
+            )
+        except Exception as e:
+            logger.error(f"Errore DB per pianta {num_richiesto}: {e}")
+
+        # Componiamo una risposta personalizzata che mostra sia la posizione che la specie
         risposta = (
-            f"Ecco il report per la Pianta {num_richiesto} ({pianta_trovata['species']}).\n"
+            f"Ecco il report in tempo reale per la pianta di {pianta_trovata['species'].capitalize()} (Posizione {num_richiesto}).\n"
             f"• Stato di salute: {pianta_trovata['health_status']}\n"
             f"• Area con anomalie cromatiche: {pianta_trovata['anomaly_pct']}%\n\n"
-            f"Posso darti dei consigli su come curarla o spiegarti di più su questa coltura. Cosa preferisci?"
+            f"Vuoi che ti dia qualche consiglio sulla cura del {pianta_trovata['species']}?"
         )
         
-        # --- NOVITÀ: Salviamo la specie nella memoria di Dialogflow ---
+        # Salviamo la specie nel contesto di Dialogflow per le domande successive
         req_data = request.get_json(silent=True)
-        session = req_data.get("session")  # ID univoco della chat utente
+        session = req_data.get("session")
         
         contesti_uscita = [{
             "name": f"{session}/contexts/analizzapianta-followup",
-            "lifespanCount": 5, # Ricorderà la specie per i prossimi 5 messaggi
+            "lifespanCount": 5,
             "parameters": {
                 "specie_vegetale": pianta_trovata['species'].lower()
             }
@@ -147,7 +172,11 @@ def handle_analizza_pianta(parameters):
         
         return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
     else:
-        risposta = f"Hai chiesto della pianta {num_richiesto}, ma attualmente nell'inquadratura ne vedo solo {seedling_count}."
+        # Messaggio di cortesia se la pianta richiesta non è presente nell'inquadratura
+        if num_richiesto:
+            risposta = f"Hai chiesto della pianta numero {num_richiesto}, ma attualmente nell'inquadratura vedo solo {seedling_count} piante."
+        else:
+            risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
         return create_dialogflow_response(risposta)
 
 
@@ -184,10 +213,6 @@ def handle_consigli_specie(parameters):
     # 2. Normalizzazione
     specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
     supporto = supporto_raw[0].lower() if isinstance(supporto_raw, list) and supporto_raw else str(supporto_raw).lower()
-    
-    # Se la specie continua a non esserci, usiamo un default
-    if not specie:
-        specie = "pianta"
         
     # Mini Knowledge-Base (Wiki)
     wiki = {
@@ -208,8 +233,24 @@ def handle_consigli_specie(parameters):
             "sole": "Cresce bene sia al sole che a mezz'ombra.",
             "concime": "Non richiede concimazioni frequenti; basta un po' di stallatico in primavera.",
             "preservare": "Proteggilo dalle cocciniglie controllando periodicamente la pagina inferiore delle foglie."
+        },
+        "rosmarino": {
+            "acqua": "Il rosmarino tollera molto bene la siccità. Annaffia solo quando il terreno è completamente asciutto, evitando assolutamente i ristagni.",
+            "sole": "Ama le esposizioni in pieno sole e ben arieggiate.",
+            "concime": "È poco esigente. Basta una leggera concimazione organica all'inizio della primavera o in autunno.",
+            "preservare": "Per prevenire i marciumi radicali (il suo peggior nemico), assicurati che il vaso o il terreno abbiano un drenaggio eccellente."
+        },
+        "altro": {
+            "acqua": "In generale, prima di annaffiare, tocca sempre il terreno: dai acqua solo se i primi centimetri sono asciutti per evitare marciumi e asfissia radicale.",
+            "sole": "Assicura una buona illuminazione, preferibilmente luce diffusa. Se non conosci la specie, evita il sole diretto nelle ore più calde.",
+            "concime": "Puoi usare un concime universale bilanciato durante il periodo primaverile ed estivo, seguendo sempre le dosi minime consigliate.",
+            "preservare": "Mantieni la pianta pulita rimuovendo eventuali foglie secche. Osserva periodicamente il fusto e le foglie per intercettare per tempo la comparsa di parassiti."
         }
     }
+
+    # Se la specie non c'è, o non è presente nel dizionario, usiamo i consigli generici
+    if not specie or specie not in wiki:
+        specie = "altro"
 
     # Risposta dinamica basata sui parametri
     if specie in wiki and supporto in wiki[specie]:

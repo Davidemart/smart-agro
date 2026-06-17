@@ -142,16 +142,15 @@ class VisionService:
                         if confidence > 0.4:
                             class_name = self.yolo_classes[class_id]
                             if class_name in ["pottedplant", "potted plant", "plant"]:
-                                box = detection[0:4] * np.array([w, h, w, h])
-                                (centerX, centerY, width, height) = box.astype("int")
-                                x = int(centerX - (width / 2))
-                                y = int(centerY - (height / 2))
+                                centerX, centerY = int(detection[0] * w), int(detection[1] * h)
+                                width, height = int(detection[2] * w), int(detection[3] * h)
+                                x, y = int(centerX - width / 2), int(centerY - height / 2)
                                 
                                 temp_boxes.append([x, y, int(width), int(height)])
                                 confidences.append(float(confidence))
                 
                 # Applicazione Non-Maximum Suppression (NMS)
-                indices = cv2.dnn.NMSBoxes(temp_boxes, confidences, 0.5, 0.4)
+                indices = cv2.dnn.NMSBoxes(temp_boxes, confidences, 0.40, 0.3)
                 if len(indices) > 0:
                     for i in indices.flatten():
                         boxes.append(temp_boxes[i])
@@ -167,13 +166,17 @@ class VisionService:
 
         self._check_timeout(pipeline_start, "Object Detection YOLO")
 
-        # ==========================================
+       # ==========================================
         # FASE 2, 3 e 4: Cropping, Keras e OpenCV per singola pianta
         # ==========================================
+        
+        # 1. Creiamo una copia del frame originale su cui disegnare i riquadri
+        annotated_frame = frame.copy()
+
         for idx, (x, y, w_box, h_box) in enumerate(boxes):
             # Limite massimo di analisi per evitare timeout su Dialogflow
-            if idx >= 3:
-                logger.warning("Raggiunto il limite massimo di 3 piantine elaborabili per evitare timeout.")
+            if idx >= 5:
+                logger.warning("Raggiunto il limite massimo di 5 piantine elaborabili per evitare timeout.")
                 break
 
             # Assicuriamoci che le coordinate di crop non escano dai bordi
@@ -200,47 +203,82 @@ class VisionService:
                     plant_data["species"] = "Basilico"
                     plant_data["confidence"] = 0.85
                 else:
-                    crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-                    resized = cv2.resize(crop_rgb, (224, 224), interpolation=cv2.INTER_AREA)
-                    normalized = (resized.astype(np.float32) / 127.5) - 1.0
-                    input_tensor = np.expand_dims(normalized, axis=0)
+                    # 1. Resize identico al test (stesso metodo di interpolazione base di OpenCV)
+                    crop_resized = cv2.resize(crop, (224, 224))
                     
-                    predictions = self.keras_model.predict(input_tensor)
-                    best_class_idx = np.argmax(predictions[0])
-                    confidence = float(predictions[0][best_class_idx])
+                    # 2. Replica esatta della funzione img_to_array() di Keras
+                    crop_array = np.asarray(crop_resized, dtype=np.float32)
+                    crop_array = np.expand_dims(crop_array, axis=0)
+                    
+                    # 3. Normalizzazione standard / 255.0
+                    crop_array = crop_array / 255.0
+                    
+                    # 4. Predizione esatta con verbose=0 come nel test
+                    predictions = self.keras_model.predict(crop_array, verbose=0)[0]
+                    best_class_idx = np.argmax(predictions)
+                    confidence = float(predictions[best_class_idx])
                     
                     plant_data["confidence"] = confidence
-                    if confidence >= 0.60:
+                    if confidence >= 0.50: # Qui puoi abbassare a 0 se vuoi vedere sempre la classe
                         plant_data["species"] = self.labels[best_class_idx]
             except Exception as e:
                 logger.error(f"Errore Keras su pianta {idx+1}: {e}")
 
             # --- Segmentazione Anomalie (OpenCV) sul Crop ---
-            try:
-                hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-                lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
-                upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
-                mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-                
-                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-                mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-                mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
-                
-                total_pixels = crop.shape[0] * crop.shape[1]
-                white_pixels = cv2.countNonZero(mask_final)
-                
-                if total_pixels > 0:
-                    anomaly_pct = float((white_pixels / total_pixels) * 100.0)
-                    plant_data["anomaly_pct"] = round(anomaly_pct, 2)
-                    if anomaly_pct > 30.0:
-                        plant_data["health_status"] = "Critico - Rilevato forte ingiallimento"
-            except Exception as e:
-                logger.error(f"Errore OpenCV su pianta {idx+1}: {e}")
+            #try:
+            #    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            #    lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
+            #    upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
+            #    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+            #    
+            #    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+            #    mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            #    mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
+            #    
+            #    total_pixels = crop.shape[0] * crop.shape[1]
+            #    white_pixels = cv2.countNonZero(mask_final)
+            #    
+            #    if total_pixels > 0:
+            #        anomaly_pct = float((white_pixels / total_pixels) * 100.0)
+            #        plant_data["anomaly_pct"] = round(anomaly_pct, 2)
+            #        if anomaly_pct > 30.0:
+            #            plant_data["health_status"] = "Critico - Rilevato forte ingiallimento"
+            #except Exception as e:
+            #    logger.error(f"Errore OpenCV su pianta {idx+1}: {e}")
 
             # Salvataggio dati singola pianta e check timeout
             results["plants"].append(plant_data)
             logger.info(f"Analisi Pianta {idx+1} completata: {plant_data['species']}, {plant_data['anomaly_pct']}% anomalia.")
+            
+            # --- NOVITÀ: Disegno su Immagine ---
+            # Scegliamo il colore (Verde se sana, Rosso se critica)
+            #color = (0, 0, 255) if plant_data["anomaly_pct"] > 30.0 else (0, 255, 0)
+
+            #per ora è sempre verde
+            color = (0, 255, 0)
+            
+            # Disegna il rettangolo
+            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+            
+            # Disegna l'etichetta
+            label = f"{plant_data['species']}"
+            cv2.putText(annotated_frame, label, (x1, max(20, y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            
             self._check_timeout(pipeline_start, f"Analisi Pianta {idx+1}")
+
+        # ==========================================
+        # FINE CICLO: Mostra e Salva l'immagine finale
+        # ==========================================
+        if len(boxes) > 0:
+            try:
+                # Salva l'immagine nella cartella del progetto
+                cv2.imwrite("debug_annotated_plants.jpg", annotated_frame)
+                
+                # Apre la finestra non bloccante (si aggiorna ad ogni richiesta)
+                cv2.imshow("Smart-Agri: Rilevamento Piante", annotated_frame)
+                cv2.waitKey(1) # 1 millisecondo di attesa per permettere a OpenCV di renderizzare la finestra senza bloccare Flask
+            except Exception as e:
+                logger.error(f"Errore durante il rendering della finestra OpenCV: {e}")
 
         logger.info(f"Latenza Totale Pipeline: {int((time.time() - pipeline_start) * 1000)}ms")
         
