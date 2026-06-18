@@ -594,23 +594,43 @@
           <span class="card-title-icon">🗄️</span>
           Database Storico (Piante e Osservazioni)
         </div>
-        <button id="close-db-btn" onclick="toggleDatabaseView()" style="
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 14px;
-          background: rgba(245, 158, 11, 0.1);
-          border: 1px solid rgba(245, 158, 11, 0.3);
-          border-radius: var(--radius-sm);
-          color: var(--accent-warn);
-          font-size: 0.76rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: inherit;
-          transition: all var(--transition);
-        ">
-          <span>🔙</span> Ritorna al Monitoraggio
-        </button>
+        <div style="display: flex; gap: 12px;">
+          <button id="reset-db-btn" onclick="resetAndAnalyze()" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-sm);
+            color: #ef4444;
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all var(--transition);
+          ">
+            <span>🔄</span> Reset DB & Ri-analizza
+          </button>
+          
+          <button id="close-db-btn" onclick="toggleDatabaseView()" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--accent-warn);
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all var(--transition);
+          ">
+            <span>🔙</span> Ritorna al Monitoraggio
+          </button>
+        </div>
       </div>
 
       <div style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
@@ -918,6 +938,36 @@
         console.error(err);
         plantsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; padding: 20px;">Impossibile connettersi al server.</td></tr>`;
         obsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 20px;">Impossibile connettersi al server.</td></tr>`;
+      });
+  }
+
+  function resetAndAnalyze() {
+    if (!confirm("Sei sicuro di voler resettare il database? Tutti i dati delle piante e delle osservazioni verranno cancellati e verrà effettuata una nuova analisi.")) {
+      return;
+    }
+    
+    const btn = document.getElementById('reset-db-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span>⏳</span> Elaborazione...';
+    btn.disabled = true;
+    
+    fetch('/api/reset-and-analyze', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert("Errore durante il reset: " + data.error);
+        } else {
+          alert(`Reset completato! Rilevate ${data.seedling_count} piantine.`);
+          fetchDatabaseData(); // Ricarica la tabella per mostrare i nuovi dati
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Errore di connessione durante il reset.");
+      })
+      .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
       });
   }
 

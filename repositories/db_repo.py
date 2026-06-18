@@ -170,3 +170,30 @@ class DBRepository:
         finally:
             if cursor: cursor.close()
             if connection: connection.close()
+
+    def reset_database(self):
+        """Svuota completamente le tabelle plants e observations e resetta gli AUTO_INCREMENT."""
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            connection.autocommit = False
+            cursor = connection.cursor()
+            
+            # Disable foreign key checks to truncate tables with relationships
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            cursor.execute("TRUNCATE TABLE observations;")
+            cursor.execute("TRUNCATE TABLE plants;")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+            
+            connection.commit()
+            logger.info("Database resettato con successo (tabelle svuotate).")
+            return True
+        except Error as e:
+            logger.error(f"Errore durante il reset del database: {e}")
+            if connection:
+                connection.rollback()
+            return False
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()

@@ -572,6 +572,43 @@ def get_db_data():
         }), 500
 
 
+@app.route('/api/reset-and-analyze', methods=['POST'])
+def reset_and_analyze():
+    """Resetta il DB e ri-analizza l'inquadratura da zero, creando nuovi ID."""
+    if db_repository is None or vision_service is None or camera_service is None:
+        return jsonify({'error': 'Servizi non inizializzati.'}), 500
+        
+    try:
+        # 1. Resetta il DB
+        success = db_repository.reset_database()
+        if not success:
+            return jsonify({'error': 'Impossibile resettare il database.'}), 500
+            
+        # 2. Cattura e analizza
+        frame = camera_service.capture_frame()
+        analysis = vision_service.analyse_frame(frame)
+        plants = analysis["plants"]
+        seedling_count = analysis["seedling_count"]
+        
+        # 3. Salva le piante trovate
+        if plants:
+            db_repository.save_plants_from_serra(plants)
+            
+            # 4. Salva la prima osservazione per ogni pianta trovata
+            for p in plants:
+                db_repository.save_single_observation(
+                    position=p["plant_id"],
+                    health_status=p["health_status"],
+                    anomaly_pct=p["anomaly_pct"],
+                    seedling_count=seedling_count
+                )
+                
+        return jsonify({'success': True, 'seedling_count': seedling_count})
+    except Exception as e:
+        logger.error(f"Errore durante il reset e ri-analisi: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Endpoint unico per il Dialogflow Fulfillment webhook."""
