@@ -546,6 +546,32 @@ def latest_image():
     return response
 
 
+@app.route('/api/db-data')
+def get_db_data():
+    """Restituisce le piante e le osservazioni registrate nel database."""
+    if db_repository is None:
+        return jsonify({
+            'error': 'Database non inizializzato o non raggiungibile.',
+            'plants': [],
+            'observations': []
+        }), 200 # Restituiamo 200 con liste vuote in modo che il frontend possa gestirlo con grazia
+
+    try:
+        plants = db_repository.get_all_plants()
+        observations = db_repository.get_all_observations()
+        return jsonify({
+            'plants': plants,
+            'observations': observations
+        })
+    except Exception as e:
+        logger.error(f"Errore durante il recupero dei dati del database: {e}")
+        return jsonify({
+            'error': str(e),
+            'plants': [],
+            'observations': []
+        }), 500
+
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Endpoint unico per il Dialogflow Fulfillment webhook."""

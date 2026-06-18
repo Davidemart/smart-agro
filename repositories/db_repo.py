@@ -134,3 +134,39 @@ class DBRepository:
         finally:
             if cursor: cursor.close()
             if connection: connection.close()
+
+    def get_all_plants(self):
+        """Recupera tutte le piante registrate nel database con mapping manuale."""
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            cursor = connection.cursor()
+            cursor.execute("SELECT plant_id, position, name, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at FROM plants ORDER BY position ASC")
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in rows]
+        except Error as e:
+            logger.error(f"Errore recupero piante dal DB: {e}")
+            return []
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()
+
+    def get_all_observations(self):
+        """Recupera tutte le osservazioni registrate nel database con mapping manuale."""
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            cursor = connection.cursor()
+            cursor.execute("SELECT obs_id, plant_id, health_status, anomaly_pct, seedling_count, DATE_FORMAT(observed_at, '%Y-%m-%d %H:%i:%s') as observed_at FROM observations ORDER BY observed_at DESC")
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in rows]
+        except Error as e:
+            logger.error(f"Errore recupero osservazioni dal DB: {e}")
+            return []
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()

@@ -461,6 +461,65 @@
     }
 
     .footer span { color: var(--accent-green); }
+
+    /* =====================================================================
+       DATABASE TABLES STYLES
+    ====================================================================== */
+    .db-table-wrapper {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card-alt);
+    }
+
+    .db-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    .db-table th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      z-index: 2;
+    }
+
+    .db-table td {
+      padding: 10px 14px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .db-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .db-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Scrollbar personalizzata per le tabelle */
+    .db-table-wrapper::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .db-table-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .db-table-wrapper::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      border-radius: 3px;
+    }
+    .db-table-wrapper::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
   </style>
 </head>
 <body>
@@ -486,7 +545,7 @@
   <div class="dashboard-grid">
 
     <!-- ========== IMAGE VIEWER CARD ========== -->
-    <div class="card image-card">
+    <div class="card image-card" id="monitor-card">
       <div class="card-header">
         <div class="card-title">
           <span class="card-title-icon">🔬</span>
@@ -528,6 +587,93 @@
       </div>
     </div>
 
+    <!-- ========== DATABASE VIEWER CARD ========== -->
+    <div class="card db-card" id="db-card" style="display: none;">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-title-icon">🗄️</span>
+          Database Storico (Piante e Osservazioni)
+        </div>
+        <button id="close-db-btn" onclick="toggleDatabaseView()" style="
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          background: rgba(245, 158, 11, 0.1);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: var(--radius-sm);
+          color: var(--accent-warn);
+          font-size: 0.76rem;
+          font-weight: 500;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all var(--transition);
+        ">
+          <span>🔙</span> Ritorna al Monitoraggio
+        </button>
+      </div>
+
+      <div style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Tabella Piante -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <h3 style="font-size: 0.88rem; font-weight: 600; color: var(--accent-teal); display: flex; align-items: center; gap: 8px;">
+              <span>🌱</span> Registro Piante Rilevate
+            </h3>
+            <span style="font-size: 0.72rem; color: var(--text-muted);" id="plants-count-badge">0 record</span>
+          </div>
+          <div class="db-table-wrapper">
+            <table class="db-table" id="plants-table">
+              <thead>
+                <tr>
+                  <th>ID Pianta</th>
+                  <th>Posizione (X)</th>
+                  <th>Specie Rilevata</th>
+                  <th>Prima Scansione</th>
+                </tr>
+              </thead>
+              <tbody id="plants-table-body">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Caricamento dati...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabella Osservazioni -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <h3 style="font-size: 0.88rem; font-weight: 600; color: var(--accent-green); display: flex; align-items: center; gap: 8px;">
+              <span>📊</span> Storico Osservazioni &amp; Misure
+            </h3>
+            <span style="font-size: 0.72rem; color: var(--text-muted);" id="obs-count-badge">0 record</span>
+          </div>
+          <div class="db-table-wrapper">
+            <table class="db-table" id="obs-table">
+              <thead>
+                <tr>
+                  <th>ID Oss.</th>
+                  <th>ID Pianta</th>
+                  <th>Stato Salute</th>
+                  <th>Anomalia (%)</th>
+                  <th>Piantine</th>
+                  <th>Data/Ora</th>
+                </tr>
+              </thead>
+              <tbody id="obs-table-body">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Caricamento dati...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ========== SIDEBAR ========== -->
     <div class="sidebar">
 
@@ -554,11 +700,30 @@
               <div class="info-value teal">Dialogflow ES</div>
             </div>
           </div>
-          <div class="info-row">
-            <div class="info-icon">🌱</div>
-            <div>
-              <div class="info-label">Immagine corrente</div>
-              <div class="info-value" id="image-name">—</div>
+          <div class="info-row" style="user-select: none;">
+            <div class="info-icon">🗄️</div>
+            <div style="flex-grow: 1;">
+              <div class="info-label">Database delle Piante</div>
+              <button id="toggle-db-btn" onclick="toggleDatabaseView()" style="
+                width: 100%;
+                background: linear-gradient(135deg, rgba(29,233,182,0.15), rgba(59,130,246,0.1));
+                border: 1px solid rgba(29,233,182,0.3);
+                border-radius: var(--radius-sm);
+                color: var(--accent-teal);
+                font-size: 0.8rem;
+                font-weight: 600;
+                padding: 8px 12px;
+                cursor: pointer;
+                font-family: inherit;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                margin-top: 5px;
+                transition: all var(--transition);
+              ">
+                <span>📁</span> Mostra Dati DB
+              </button>
             </div>
           </div>
           <div class="info-row">
@@ -668,6 +833,92 @@
     clearInterval(pollTimer);
     loadImage();
     pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+  }
+
+  let dbViewActive = false;
+
+  function toggleDatabaseView() {
+    dbViewActive = !dbViewActive;
+    const monitorCard = document.getElementById('monitor-card');
+    const dbCard = document.getElementById('db-card');
+    const toggleBtn = document.getElementById('toggle-db-btn');
+
+    if (dbViewActive) {
+      monitorCard.style.display = 'none';
+      dbCard.style.display = 'block';
+      toggleBtn.innerHTML = '<span>📺</span> Monitoraggio Live';
+      clearInterval(pollTimer);
+      pollTimer = null;
+      fetchDatabaseData();
+    } else {
+      monitorCard.style.display = 'block';
+      dbCard.style.display = 'none';
+      toggleBtn.innerHTML = '<span>📁</span> Mostra Dati DB';
+      loadImage();
+      pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+    }
+  }
+
+  function fetchDatabaseData() {
+    const plantsBody = document.getElementById('plants-table-body');
+    const obsBody = document.getElementById('obs-table-body');
+    const plantsBadge = document.getElementById('plants-count-badge');
+    const obsBadge = document.getElementById('obs-count-badge');
+
+    plantsBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 20px;">Caricamento dati...</td></tr>';
+    obsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 20px;">Caricamento dati...</td></tr>';
+
+    fetch('/api/db-data')
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          plantsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--accent-warn); padding: 20px;">Errore: ${data.error}</td></tr>`;
+          obsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--accent-warn); padding: 20px;">Errore: ${data.error}</td></tr>`;
+          return;
+        }
+
+        // Popola piante
+        if (data.plants && data.plants.length > 0) {
+          plantsBadge.textContent = `${data.plants.length} record`;
+          plantsBody.innerHTML = data.plants.map(p => `
+            <tr>
+              <td style="font-weight: 600; color: var(--accent-teal);">#${p.plant_id}</td>
+              <td>${p.position}</td>
+              <td style="font-weight: 500;">${p.name}</td>
+              <td style="color: var(--text-secondary);">${p.created_at || '—'}</td>
+            </tr>
+          `).join('');
+        } else {
+          plantsBadge.textContent = '0 record';
+          plantsBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Nessuna pianta registrata nel database. Effettua prima una scansione della serra.</td></tr>';
+        }
+
+        // Popola osservazioni
+        if (data.observations && data.observations.length > 0) {
+          obsBadge.textContent = `${data.observations.length} record`;
+          obsBody.innerHTML = data.observations.map(o => {
+            const healthClass = o.health_status.toLowerCase().includes('critico') || o.health_status.toLowerCase().includes('ingiallimento') ? 'color: #ef4444;' : 'color: var(--accent-green);';
+            return `
+              <tr>
+                <td style="font-weight: 600;">#${o.obs_id}</td>
+                <td style="color: var(--accent-teal); font-weight: 600;">#${o.plant_id}</td>
+                <td style="font-weight: 500; ${healthClass}">${o.health_status}</td>
+                <td style="font-weight: 600;">${o.anomaly_pct !== null ? o.anomaly_pct.toFixed(2) + '%' : '—'}</td>
+                <td>${o.seedling_count || '—'}</td>
+                <td style="color: var(--text-secondary);">${o.observed_at || '—'}</td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          obsBadge.textContent = '0 record';
+          obsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Nessuna osservazione registrata. Avvia l\'analisi di una pianta da Dialogflow.</td></tr>';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        plantsBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; padding: 20px;">Impossibile connettersi al server.</td></tr>`;
+        obsBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 20px;">Impossibile connettersi al server.</td></tr>`;
+      });
   }
 
   // Avvio polling al caricamento pagina
