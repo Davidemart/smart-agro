@@ -173,6 +173,10 @@ class VisionService:
         # 1. Creiamo una copia del frame originale su cui disegnare i riquadri
         annotated_frame = frame.copy()
 
+        # Ordina le bounding box da sinistra a destra (in base alla coordinata x)
+        boxes.sort(key=lambda b: b[0])
+        logger.info(f"Coordinate box ordinate da sinistra a destra: {boxes}")
+
         for idx, (x, y, w_box, h_box) in enumerate(boxes):
             # Limite massimo di analisi per evitare timeout su Dialogflow
             if idx >= 5:
@@ -263,8 +267,8 @@ class VisionService:
             # Disegna il rettangolo
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
             
-            # Disegna l'etichetta
-            label = f"{plant_data['species']}"
+            # Disegna l'etichetta con ID (posizione) e specie
+            label = f"P{plant_data['plant_id']}: {plant_data['species']}"
             cv2.putText(annotated_frame, label, (x1, max(20, y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             
             self._check_timeout(pipeline_start, f"Analisi Pianta {idx+1}")
