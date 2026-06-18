@@ -10,7 +10,6 @@ class CameraService:
         self.camera_index = Config.CAMERA_INDEX
         self.test_images_dir = "test_images"
         
-        # Verifica se l'indice della camera è una stringa che richiede la modalità test
         self.is_test_mode = False
         self.cached_test_frame = None
         if isinstance(self.camera_index, str) and (self.camera_index.lower() == "test" or self.camera_index.lower() == "test_images"):
@@ -24,7 +23,6 @@ class CameraService:
             os.makedirs(self.test_images_dir)
             logger.info(f"Creata la cartella '{self.test_images_dir}' per i dataset di test.")
             
-        # Controlla se la cartella contiene almeno un'immagine valida
         images = [f for f in os.listdir(self.test_images_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         if not images:
             logger.error(f"La cartella '{self.test_images_dir}' è vuota. Impossibile procedere con i test offline.")
@@ -53,7 +51,6 @@ class CameraService:
             return self._load_random_test_image()
 
         try:
-            # Pulisci il buffer scartando i primi frame
             for _ in range(5):
                 cap.grab()
                 
@@ -67,12 +64,10 @@ class CameraService:
                 
             logger.info(f"Frame acquisito da webcam fisica. Dimensioni: {frame.shape[1]}x{frame.shape[0]}")
             
-            # --- AGGIUNTA PER IL DEBUG ---
-            # Salva l'immagine catturata NELLA CARTELLA PRINCIPALE
             debug_path = "debug_last_capture.jpg"
             cv2.imwrite(debug_path, frame)
             logger.info(f"Immagine di debug salvata come '{debug_path}'")
-            # -----------------------------
+            
             
             return frame
 

@@ -7,14 +7,13 @@ from utils.logger import logger
 class DBRepository:
     _pool = None
     _last_init_attempt = 0
-    _init_cooldown = 60 # Cooldown di 60 secondi tra i tentativi di inizializzazione falliti
+    _init_cooldown = 60
 
     @classmethod
     def initialize_pool(cls):
         """Inizializza il connection pool per MySQL una sola volta."""
         current_time = time.time()
         if cls._pool is None:
-            # Salta il tentativo di connessione se siamo all'interno della finestra di cooldown
             if current_time - cls._last_init_attempt < cls._init_cooldown:
                 logger.warning("Inizializzazione del pool MySQL saltata per evitare blocchi (cooldown attivo).")
                 return
@@ -30,24 +29,20 @@ class DBRepository:
                     user=Config.DB_USER,
                     password=Config.DB_PASSWORD,
                     database=Config.DB_NAME,
-                    connect_timeout=2 # Timeout veloce di 2 secondi
+                    connect_timeout=2
                 )
                 logger.info("MySQL connection pool inizializzato con successo.")
             except Error as e:
                 logger.error(f"Errore critico nell'inizializzazione del connection pool MySQL: {e}")
-                # Non solleviamo l'eccezione qui per consentire al server Flask di avviarsi
-                # e registrare gli errori di runtime o gestire la riconnessione successiva
                 cls._pool = None
 
     def __init__(self):
-        # Assicura che il pool sia inizializzato
         if self._pool is None:
             self.initialize_pool()
 
     def _get_connection(self):
         """Prende una connessione dal pool."""
         if self._pool is None:
-            # Riprova ad inizializzare se in precedenza ha fallito
             self.initialize_pool()
             if self._pool is None:
                 raise Error("Il database non è configurato o non è raggiungibile.")
@@ -55,10 +50,8 @@ class DBRepository:
 
     def save_plants_from_serra(self, plants_data):
         """
-        [AnalizzaSerra]
+        """
         Salva o aggiorna la mappa della serra nella tabella 'plants'.
-        Usa 'ON DUPLICATE KEY UPDATE' così se la pianta in quella posizione 
-        era già stata registrata, ne aggiorna semplicemente la specie riconosciuta.
         """
         connection = None
         cursor = None
@@ -67,8 +60,6 @@ class DBRepository:
             connection.autocommit = False
             cursor = connection.cursor()
 
-            # La query inserisce la posizione e il nome. Se la posizione (UNIQUE) 
-            # esiste già, aggiorna il nome della specie.
             upsert_query = """
                 INSERT INTO plants (position, name) 
                 VALUES (%s, %s) 
@@ -76,7 +67,6 @@ class DBRepository:
             """
             
             for p in plants_data:
-                # p["plant_id"] del dizionario Python corrisponde alla 'position' di YOLO
                 cursor.execute(upsert_query, (p["plant_id"], p["species"]))
 
             connection.commit()
@@ -95,7 +85,7 @@ class DBRepository:
 
     def save_single_observation(self, position, health_status, anomaly_pct, seedling_count):
         """
-        [AnalizzaPianta]
+        """
         Salva un'osservazione nella tabella 'observations' per una specifica posizione.
         """
         connection = None
@@ -105,7 +95,6 @@ class DBRepository:
             connection.autocommit = False
             cursor = connection.cursor()
 
-            # 1. Recupera il plant_id (PK) reale basato sulla 'position' richiesta dall'utente
             cursor.execute("SELECT plant_id FROM plants WHERE position = %s", (position,))
             result = cursor.fetchone()
             
@@ -115,7 +104,6 @@ class DBRepository:
                 
             real_plant_id = result[0]
 
-            # 2. Inserisce le metriche nella tabella observations
             insert_obs_query = """
                 INSERT INTO observations (plant_id, health_status, anomaly_pct, seedling_count)
                 VALUES (%s, %s, %s, %s)
@@ -180,7 +168,6 @@ class DBRepository:
             connection.autocommit = False
             cursor = connection.cursor()
             
-            # Disable foreign key checks to truncate tables with relationships
             cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
             cursor.execute("TRUNCATE TABLE observations;")
             cursor.execute("TRUNCATE TABLE plants;")
