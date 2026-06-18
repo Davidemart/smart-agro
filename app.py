@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from services.vision_service import VisionService
 from services.camera_service import CameraService
 from repositories.db_repo import DBRepository
@@ -56,11 +57,40 @@ def handle_analizza_serra(parameters):
     """
     Gestisce l'intento AnalizzaSerra (Panoramica generale).
     Restituisce solo il conteggio, la specie e la posizione di ogni pianta.
+    Se viene richiesta una specie specifica, restituisce dettagli su di essa.
     """
     if vision_service is None or camera_service is None:
         raise RuntimeError("Servizi non inizializzati.")
 
-    logger.info("Avvio flusso panoramica: AnalizzaSerra")
+    # 1. Estrazione e normalizzazione del parametro specie_vegetale
+    specie_richiesta = parameters.get("specie_vegetale", "")
+    if isinstance(specie_richiesta, list) and specie_richiesta:
+        specie_richiesta = str(specie_richiesta[0]).lower()
+    else:
+        specie_richiesta = str(specie_richiesta).lower()
+
+    # Verifica se l'utente si riferisce a una specie specifica (escludendo termini generici)
+    is_specie_specifica = specie_richiesta and specie_richiesta not in ["pianta", "piante", "piantina", "piantine", "colture", "coltura"]
+
+    # --- NOVITÀ: Controllo di sicurezza sull'ereditarietà dei parametri da contesto ---
+    req_data = request.get_json(silent=True)
+    query_text = ""
+    if req_data and "queryResult" in req_data:
+        query_text = req_data["queryResult"].get("queryText", "").lower()
+
+    # Parole chiave generiche e specifiche nel testo dell'utente
+    generic_keywords = ["pianta", "piante", "piantina", "piantine", "coltura", "colture", "serra", "generale", "tutti", "tutte"]
+    specific_keywords = ["pomodor", "basilic", "allor", "rosmarin"]
+
+    contiene_generico = any(x in query_text for x in generic_keywords)
+    contiene_specifico = any(x in query_text for x in specific_keywords)
+
+    # Se il testo digitato contiene parole generiche e non contiene specie specifiche, 
+    # forziamo il comportamento generico (sovrascrivendo l'eredità automatica di Dialogflow)
+    if contiene_generico and not contiene_specifico:
+        is_specie_specifica = False
+
+    logger.info(f"Avvio flusso panoramica: AnalizzaSerra (Specie richiesta: {specie_richiesta}, Specifica: {is_specie_specifica})")
     
     frame = camera_service.capture_frame()
     analysis = vision_service.analyse_frame(frame)
@@ -73,7 +103,99 @@ def handle_analizza_serra(parameters):
             "Ho controllato la serra, ma non ho rilevato alcuna piantina. Prova a sistemare l'inquadratura."
         )
 
-    # Crea un elenco puntato con posizione e specie
+    # Salvataggio delle piante nel database
+    if db_repository is not None:
+        try:
+            db_repository.save_plants_from_serra(plants)
+        except Exception as e:
+            logger.error(f"Errore durante la mappatura delle piante: {e}")
+
+    # Gestione query per specie specifica
+    if is_specie_specifica:
+        piante_specie = [p for p in plants if p["species"].lower() == specie_richiesta]
+        
+        # Estrazione dell'azione (es. "quanti" vs "come sta")
+        azione_raw = parameters.get("azione", "")
+        azione = azione_raw[0].lower() if isinstance(azione_raw, list) and azione_raw else str(azione_raw).lower()
+        chiede_conteggio = "quant" in azione or ("conta" in azione and "controll" not in azione)
+
+        req_data = request.get_json(silent=True)
+        session = req_data.get("session") if req_data else None
+
+        if chiede_conteggio:
+            count_specie = len(piante_specie)
+            if count_specie == 0:
+                risposta = f"Ho controllato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
+            elif count_specie == 1:
+                risposta = f"Nell'inquadratura è presente 1 pianta di '{specie_richiesta.capitalize()}'."
+            else:
+                risposta = f"Nell'inquadratura sono presenti {count_specie} piante di '{specie_richiesta.capitalize()}'."
+            
+            # Reset del contesto se non trovata, altrimenti salva/aggiorna
+            contesti_uscita = None
+            if session:
+                lifespan = 5 if count_specie > 0 else 0
+                contesti_uscita = [{
+                    "name": f"{session}/contexts/analizzapianta-followup",
+                    "lifespanCount": lifespan,
+                    "parameters": {
+                        "specie_vegetale": specie_richiesta if count_specie > 0 else ""
+                    }
+                }]
+            return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+        else:
+            # Chiede lo stato di salute
+            if not piante_specie:
+                risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
+                
+                # Reset del contesto
+                contesti_uscita = None
+                if session:
+                    contesti_uscita = [{
+                        "name": f"{session}/contexts/analizzapianta-followup",
+                        "lifespanCount": 0,
+                        "parameters": {}
+                    }]
+                return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+            
+            reports = []
+            for p in piante_specie:
+                # Salva l'osservazione nel database per ciascuna pianta
+                if db_repository is not None:
+                    try:
+                        db_repository.save_single_observation(
+                            position=p["plant_id"],
+                            health_status=p["health_status"],
+                            anomaly_pct=p["anomaly_pct"],
+                            seedling_count=seedling_count
+                        )
+                    except Exception as e:
+                        logger.error(f"Errore salvataggio osservazione nel database per pianta {p['plant_id']}: {e}")
+
+                reports.append(
+                    f"• {specie_richiesta.capitalize()} (Posizione {p['plant_id']}): "
+                    f"Stato {p['health_status']}, Anomalie cromatiche {p['anomaly_pct']}%."
+                )
+            
+            risposta = (
+                f"Ecco lo stato di salute per le piante di {specie_richiesta.capitalize()} rilevate:\n"
+                + "\n".join(reports) + "\n\n"
+                + f"Vuoi che ti dia qualche consiglio sulla cura del {specie_richiesta}?"
+            )
+
+            # Aggiunta contesto di followup per eventuali richieste di consigli successive
+            contesti_uscita = None
+            if session:
+                contesti_uscita = [{
+                    "name": f"{session}/contexts/analizzapianta-followup",
+                    "lifespanCount": 5,
+                    "parameters": {
+                        "specie_vegetale": specie_richiesta
+                    }
+                }]
+            return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+
+    # Se la richiesta è generica, seguiamo il comportamento standard
     plant_reports = []
     for plant in plants:
         plant_reports.append(f"• Posizione {plant['plant_id']}: {plant['species']}")
@@ -85,13 +207,17 @@ def handle_analizza_serra(parameters):
         f"Se vuoi sapere come sta una di queste, chiedimi ad esempio: 'Come sta la pianta 1?'"
     )
 
-    if seedling_count > 0 and db_repository is not None:
-        try:
-            db_repository.save_plants_from_serra(plants)
-        except Exception as e:
-            logger.error(f"Errore durante la mappatura delle piante: {e}")
-
-    return create_dialogflow_response(risposta)
+    # Reset del contesto
+    req_data = request.get_json(silent=True)
+    session = req_data.get("session") if req_data else None
+    contesti_uscita = None
+    if session:
+        contesti_uscita = [{
+            "name": f"{session}/contexts/analizzapianta-followup",
+            "lifespanCount": 0,
+            "parameters": {}
+        }]
+    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
 
 def handle_analizza_pianta(parameters):
@@ -131,12 +257,100 @@ def handle_analizza_pianta(parameters):
     if num_richiesto:
         # Se l'utente ha detto il numero (es. "Pianta 1"), cerchiamo per ID posizione
         num_richiesto = int(num_richiesto[0]) if isinstance(num_richiesto, list) else int(num_richiesto)
-        pianta_trovata = next((p for p in plants if p["plant_id"] == num_richiesto), None)
+        pianta_posizione = next((p for p in plants if p["plant_id"] == num_richiesto), None)
+        
+        if pianta_posizione:
+            if specie_richiesta and specie_richiesta not in ["pianta", "piantina", "piantine", "coltura", "colture"]:
+                # Verifichiamo la corrispondenza tra la specie richiesta e quella reale nella posizione
+                if pianta_posizione["species"].lower() != specie_richiesta:
+                    # Mismatch! Cerchiamo dove si trova la specie richiesta
+                    piante_specie_corrette = [p for p in plants if p["species"].lower() == specie_richiesta]
+                    if not piante_specie_corrette:
+                        risposta = (
+                            f"Nella posizione {num_richiesto} non c'è il {specie_richiesta.lower()}, "
+                            f"ma c'è una pianta di {pianta_posizione['species'].lower()}. "
+                            f"Non ho rilevato alcuna pianta di {specie_richiesta.lower()} nell'inquadratura."
+                        )
+                    else:
+                        if len(piante_specie_corrette) == 1:
+                            pos_info = f"in posizione {piante_specie_corrette[0]['plant_id']}"
+                        else:
+                            positions = [p["plant_id"] for p in piante_specie_corrette]
+                            if len(positions) == 2:
+                                pos_info = f"in posizione {positions[0]} o {positions[1]}"
+                            else:
+                                pos_info = "in posizione " + ", ".join(map(str, positions[:-1])) + f" o {positions[-1]}"
+                        
+                        risposta = (
+                            f"Nella posizione {num_richiesto} non c'è il {specie_richiesta.lower()}, "
+                            f"ma c'è una pianta di {pianta_posizione['species'].lower()}, "
+                            f"il {specie_richiesta.lower()} è {pos_info}."
+                        )
+                    
+                    # Impostiamo o resettiamo il contesto per eventuale follow-up
+                    req_data = request.get_json(silent=True)
+                    session = req_data.get("session") if req_data else None
+                    contesti_uscita = None
+                    if session:
+                        lifespan = 5 if piante_specie_corrette else 0
+                        contesti_uscita = [{
+                            "name": f"{session}/contexts/analizzapianta-followup",
+                            "lifespanCount": lifespan,
+                            "parameters": {
+                                "specie_vegetale": specie_richiesta if piante_specie_corrette else ""
+                            }
+                        }]
+                    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+            
+            # Se la specie coincide o non è indicata
+            pianta_trovata = pianta_posizione
     elif specie_richiesta:
-        # Se l'utente ha detto il nome (es. "Pomodoro"), cerchiamo la prima pianta di quella specie nella foto
-        pianta_trovata = next((p for p in plants if p["species"].lower() == specie_richiesta), None)
-        if pianta_trovata:
+        # Se l'utente ha detto il nome (es. "Pomodoro"), cerchiamo tutte le piante di quella specie
+        piante_specie = [p for p in plants if p["species"].lower() == specie_richiesta]
+        if len(piante_specie) == 1:
+            pianta_trovata = piante_specie[0]
             num_richiesto = pianta_trovata["plant_id"] # Recuperiamo il numero di posizione reale per il DB
+        elif len(piante_specie) > 1:
+            # Caso duplicati! Rispondiamo con la concatenazione dei report per ciascuna pianta
+            reports = []
+            for p in piante_specie:
+                # Salva l'osservazione nel database per ciascuna pianta
+                if db_repository is not None:
+                    try:
+                        db_repository.save_single_observation(
+                            position=p["plant_id"],
+                            health_status=p["health_status"],
+                            anomaly_pct=p["anomaly_pct"],
+                            seedling_count=seedling_count
+                        )
+                    except Exception as e:
+                        logger.error(f"Errore salvataggio osservazione nel database per pianta {p['plant_id']}: {e}")
+
+                reports.append(
+                    f"• {specie_richiesta.capitalize()} (Posizione {p['plant_id']}): "
+                    f"Stato {p['health_status']}, Anomalie cromatiche {p['anomaly_pct']}%."
+                )
+            
+            risposta = (
+                f"Ecco lo stato di salute per le piante di {specie_richiesta.capitalize()} rilevate:\n"
+                + "\n".join(reports) + "\n\n"
+                + f"Vuoi che ti dia qualche consiglio sulla cura del {specie_richiesta}?"
+            )
+            
+            req_data = request.get_json(silent=True)
+            session = req_data.get("session") if req_data else None
+            
+            contesti_uscita = None
+            if session:
+                contesti_uscita = [{
+                    "name": f"{session}/contexts/analizzapianta-followup",
+                    "lifespanCount": 5,
+                    "parameters": {
+                        "specie_vegetale": specie_richiesta
+                    }
+                }]
+            
+            return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
     # 4. Gestione del risultato e salvataggio
     if pianta_trovata:
@@ -177,7 +391,18 @@ def handle_analizza_pianta(parameters):
             risposta = f"Hai chiesto della pianta numero {num_richiesto}, ma attualmente nell'inquadratura vedo solo {seedling_count} piante."
         else:
             risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
-        return create_dialogflow_response(risposta)
+        
+        # Reset del contesto
+        req_data = request.get_json(silent=True)
+        session = req_data.get("session") if req_data else None
+        contesti_uscita = None
+        if session:
+            contesti_uscita = [{
+                "name": f"{session}/contexts/analizzapianta-followup",
+                "lifespanCount": 0,
+                "parameters": {}
+            }]
+        return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
 
 def handle_saluto(parameters):
@@ -248,6 +473,9 @@ def handle_consigli_specie(parameters):
         }
     }
 
+    # Teniamo traccia della specie reale da salvare nel contesto prima di sovrascriverla con "altro" per la wiki
+    specie_da_salvare = specie if (specie and specie != "pianta" and specie != "altro") else None
+
     # Se la specie non c'è, o non è presente nel dizionario, usiamo i consigli generici
     if not specie or specie not in wiki:
         specie = "altro"
@@ -260,7 +488,19 @@ def handle_consigli_specie(parameters):
     else:
         risposta = "Non ho capito esattamente quale consiglio ti serve. Prova a chiedermi dell'acqua, del sole o del concime per una specifica pianta."
 
-    return create_dialogflow_response(risposta)
+    # Aggiunta/aggiornamento del contesto per conservare la memoria della pianta analizzata
+    session = req_data.get("session") if req_data else None
+    contesti_uscita = None
+    if session and specie_da_salvare:
+        contesti_uscita = [{
+            "name": f"{session}/contexts/analizzapianta-followup",
+            "lifespanCount": 5,
+            "parameters": {
+                "specie_vegetale": specie_da_salvare
+            }
+        }]
+
+    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
 # Mappa degli intenti registrati (Pattern Strategy)
 # La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
@@ -276,6 +516,35 @@ INTENT_ROUTING = {
 # =====================================================================
 # ENDPOINT E ROUTING PRINCIPALE
 # =====================================================================
+
+@app.route('/')
+def index():
+    """Serve la dashboard web principale."""
+    return send_from_directory('static', 'index.html')
+
+
+@app.route('/latest-image')
+def latest_image():
+    """
+    Restituisce l'ultima immagine annotata salvata dalla pipeline di analisi.
+    Se non esiste ancora, restituisce un'immagine placeholder 404.
+    """
+    image_path = os.path.join(os.path.dirname(__file__), 'debug_annotated_plants.jpg')
+    if not os.path.exists(image_path):
+        # Prova a restituire la prima immagine di test come placeholder
+        test_dir = os.path.join(os.path.dirname(__file__), 'test_images')
+        images = [f for f in os.listdir(test_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        if images:
+            return send_file(os.path.join(test_dir, images[0]), mimetype='image/jpeg')
+        return jsonify({'error': 'Nessuna immagine disponibile'}), 404
+
+    # max_age=0: niente cache, il browser chiede sempre l'immagine aggiornata
+    response = send_file(image_path, mimetype='image/jpeg')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():

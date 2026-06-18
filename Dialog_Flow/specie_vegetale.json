@@ -1,9 +1,9 @@
 {
   "isRegexp": false,
   "isEnum": false,
-  "allowFuzzyExtraction": false,
+  "allowFuzzyExtraction": true,
   "name": "specie_vegetale",
-  "automatedExpansion": false,
+  "automatedExpansion": true,
   "entries": [
     {
       "value": "alloro",
@@ -32,17 +32,6 @@
       "synonyms": [
         "rosmarino",
         "pianta di rosmarino"
-      ]
-    },
-    {
-      "value": "pianta",
-      "synonyms": [
-        "pianta",
-        "piantina",
-        "colture",
-        "coltura",
-        "piante",
-        "piantine"
       ]
     }
   ],

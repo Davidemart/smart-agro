@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart-Agri — Dashboard</title>
+  <meta name="description" content="Dashboard in tempo reale per il monitoraggio e l'analisi delle piante in serra con visione artificiale e IA." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =====================================================================
+       DESIGN SYSTEM – TOKENS
+    ====================================================================== */
+    :root {
+      --bg-base:      #0b0f12;
+      --bg-surface:   #111720;
+      --bg-card:      #161d27;
+      --bg-card-alt:  #1a2230;
+      --border:       rgba(255,255,255,0.07);
+      --border-glow:  rgba(56,189,108,0.35);
+
+      --accent-green: #38bd6c;
+      --accent-teal:  #1de9b6;
+      --accent-blue:  #3b82f6;
+      --accent-warn:  #f59e0b;
+
+      --text-primary:   #f0f4f8;
+      --text-secondary: #8a96a8;
+      --text-muted:     #4d5a68;
+
+      --radius-sm:  8px;
+      --radius-md:  14px;
+      --radius-lg:  22px;
+
+      --shadow-card: 0 4px 32px rgba(0,0,0,0.55);
+      --shadow-glow: 0 0 28px rgba(56,189,108,0.18);
+
+      --transition: 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* =====================================================================
+       RESET & BASE
+    ====================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* =====================================================================
+       BACKGROUND PARTICLES / GLOW
+    ====================================================================== */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 900px;
+      background: radial-gradient(ellipse at center,
+        rgba(56,189,108,0.06) 0%,
+        transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      animation: pulse-bg 8s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-bg {
+      from { opacity: 0.5; transform: translateX(-50%) scale(1); }
+      to   { opacity: 1;   transform: translateX(-50%) scale(1.15); }
+    }
+
+    /* =====================================================================
+       LAYOUT
+    ====================================================================== */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* =====================================================================
+       HEADER
+    ====================================================================== */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 32px 0 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-teal));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: var(--shadow-glow);
+      flex-shrink: 0;
+    }
+
+    .logo-text h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-teal));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .logo-text p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(56,189,108,0.1);
+      border: 1px solid rgba(56,189,108,0.25);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      color: var(--accent-green);
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: blink 1.8s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(56,189,108,0.5); }
+      50%       { opacity: 0.5; box-shadow: 0 0 0 5px rgba(56,189,108,0); }
+    }
+
+    /* =====================================================================
+       MAIN GRID
+    ====================================================================== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 28px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    /* =====================================================================
+       CARDS
+    ====================================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      transition: border-color var(--transition);
+    }
+
+    .card:hover { border-color: var(--border-glow); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .card-title-icon {
+      font-size: 1.1rem;
+    }
+
+    .card-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: rgba(56,189,108,0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(56,189,108,0.2);
+    }
+
+    /* =====================================================================
+       IMAGE VIEWER
+    ====================================================================== */
+    .image-card { }
+
+    .image-wrapper {
+      position: relative;
+      background: #080c10;
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #plant-image {
+      width: 100%;
+      max-height: 600px;
+      object-fit: contain;
+      display: block;
+      transition: opacity 0.4s ease;
+    }
+
+    .image-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: var(--text-muted);
+    }
+
+    .image-placeholder-icon { font-size: 3.5rem; opacity: 0.5; }
+
+    .image-placeholder p {
+      font-size: 0.85rem;
+      text-align: center;
+      max-width: 200px;
+    }
+
+    /* Scan line overlay while loading */
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(56,189,108,0.04) 50%,
+        transparent 100%);
+      background-size: 100% 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .image-wrapper.refreshing .scan-overlay {
+      opacity: 1;
+      animation: scan 1s linear infinite;
+    }
+
+    @keyframes scan {
+      from { background-position: 0 0; }
+      to   { background-position: 0 600px; }
+    }
+
+    .image-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .refresh-info {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .last-update {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    #refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 18px;
+      background: linear-gradient(135deg, rgba(56,189,108,0.15), rgba(29,233,182,0.1));
+      border: 1px solid rgba(56,189,108,0.3);
+      border-radius: var(--radius-sm);
+      color: var(--accent-green);
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    #refresh-btn:hover {
+      background: linear-gradient(135deg, rgba(56,189,108,0.25), rgba(29,233,182,0.18));
+      border-color: rgba(56,189,108,0.5);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(56,189,108,0.2);
+    }
+
+    #refresh-btn:active { transform: translateY(0); }
+
+    #refresh-btn .icon { font-size: 1rem; transition: transform 0.6s ease; }
+    .rotating { animation: spin 0.7s linear; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* =====================================================================
+       SIDEBAR PANELS
+    ====================================================================== */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    /* Info panel */
+    .info-list { padding: 8px 0; }
+
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 22px;
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+
+    .info-row:last-child { border-bottom: none; }
+    .info-row:hover { background: rgba(255,255,255,0.03); }
+
+    .info-icon {
+      font-size: 1.2rem;
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .info-label {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+
+    .info-value {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .info-value.green { color: var(--accent-green); }
+    .info-value.teal  { color: var(--accent-teal); }
+
+    /* Chat hint */
+    .chat-hint {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-card-alt));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-hint-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-hint-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .example-queries {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .example-query {
+      font-size: 0.77rem;
+      color: var(--accent-teal);
+      background: rgba(29,233,182,0.06);
+      border: 1px solid rgba(29,233,182,0.15);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px;
+      font-style: italic;
+    }
+
+    /* =====================================================================
+       DIALOGFLOW MESSENGER CUSTOM STYLES
+    ====================================================================== */
+    df-messenger {
+      z-index: 999;
+      --df-messenger-bot-message: #1e2d40;
+      --df-messenger-button-titlebar-color: #111720;
+      --df-messenger-chat-background-color: #0b0f12;
+      --df-messenger-font-color: #f0f4f8;
+      --df-messenger-send-icon: #38bd6c;
+      --df-messenger-user-message: #1a3a2a;
+      --df-messenger-input-box-color: #161d27;
+      --df-messenger-input-font-color: #f0f4f8;
+      --df-messenger-input-placeholder-font-color: #4d5a68;
+      --df-messenger-minimized-icon-close-color: #38bd6c;
+    }
+
+    /* =====================================================================
+       FOOTER
+    ====================================================================== */
+    .footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .footer span { color: var(--accent-green); }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">
+      <h1>Smart-Agri</h1>
+      <p>Monitoraggio piante in tempo reale · Computer Vision + IA</p>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        Sistema attivo
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD GRID -->
+  <div class="dashboard-grid">
+
+    <!-- ========== IMAGE VIEWER CARD ========== -->
+    <div class="card image-card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-title-icon">🔬</span>
+          Analisi visiva in tempo reale
+        </div>
+        <span class="card-badge" id="refresh-label">Auto-aggiornamento: ON</span>
+      </div>
+
+      <div class="image-wrapper" id="image-wrapper">
+        <!-- Scan overlay durante il refresh -->
+        <div class="scan-overlay"></div>
+
+        <!-- Placeholder mostrato solo se nessuna immagine è disponibile -->
+        <div class="image-placeholder" id="placeholder">
+          <div class="image-placeholder-icon">📷</div>
+          <p>In attesa della prima analisi da Dialogflow…</p>
+        </div>
+
+        <img
+          id="plant-image"
+          src=""
+          alt="Immagine annotata dall'analisi delle piante"
+          style="display:none;"
+          onload="onImageLoaded()"
+          onerror="onImageError()"
+        />
+      </div>
+
+      <div class="image-footer">
+        <div class="refresh-info">
+          <span>⏱</span>
+          Polling ogni <strong>3 s</strong>
+        </div>
+        <span class="last-update" id="last-update">In attesa…</span>
+        <button id="refresh-btn" onclick="refreshNow()">
+          <span class="icon" id="refresh-icon">↻</span>
+          Aggiorna ora
+        </button>
+      </div>
+    </div>
+
+    <!-- ========== SIDEBAR ========== -->
+    <div class="sidebar">
+
+      <!-- Info panel -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="card-title-icon">📊</span>
+            Informazioni sessione
+          </div>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <div class="info-icon">🖥</div>
+            <div>
+              <div class="info-label">Server Flask</div>
+              <div class="info-value green" id="server-status">Connesso</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-icon">🤖</div>
+            <div>
+              <div class="info-label">Agente AI</div>
+              <div class="info-value teal">Dialogflow ES</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-icon">🌱</div>
+            <div>
+              <div class="info-label">Immagine corrente</div>
+              <div class="info-value" id="image-name">—</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-icon">🔁</div>
+            <div>
+              <div class="info-label">Aggiornamenti</div>
+              <div class="info-value" id="update-count">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat hint -->
+      <div class="chat-hint">
+        <div class="chat-hint-title">💬 Chiedi all'assistente</div>
+        <p class="chat-hint-desc">
+          Usa il widget in basso a destra per analizzare le tue piante con il linguaggio naturale.
+        </p>
+        <div class="example-queries">
+          <div class="example-query">"Analizza la pianta di pomodoro"</div>
+          <div class="example-query">"Come sta il basilico?"</div>
+          <div class="example-query">"Dammi consigli sull'acqua"</div>
+          <div class="example-query">"Analizza tutta la serra"</div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+  </div><!-- /dashboard-grid -->
+
+  <footer class="footer">
+    Smart-Agri Dashboard · Powered by <span>Flask</span>, <span>Dialogflow ES</span> &amp; <span>Computer Vision</span>
+  </footer>
+
+</div><!-- /wrapper -->
+
+<!-- =====================================================================
+     DIALOGFLOW MESSENGER WIDGET
+====================================================================== -->
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="Smart-Agri_Assistant"
+  agent-id="0f04319a-bc04-4d48-ab6b-2a227c9d1dcc"
+  language-code="it"
+></df-messenger>
+
+<!-- =====================================================================
+     LIVE IMAGE POLLING SCRIPT
+====================================================================== -->
+<script>
+  const POLL_INTERVAL_MS = 3000;
+  const IMAGE_ENDPOINT   = '/latest-image';
+
+  let updateCount = 0;
+  let pollTimer   = null;
+  let isLoaded    = false;
+
+  const imgEl        = document.getElementById('plant-image');
+  const placeholder  = document.getElementById('placeholder');
+  const wrapper      = document.getElementById('image-wrapper');
+  const lastUpdateEl = document.getElementById('last-update');
+  const countEl      = document.getElementById('update-count');
+  const refreshIcon  = document.getElementById('refresh-icon');
+  const imageNameEl  = document.getElementById('image-name');
+  const serverStatus = document.getElementById('server-status');
+
+  function getTimestamp() {
+    const d = new Date();
+    return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function onImageLoaded() {
+    if (!isLoaded) {
+      isLoaded = true;
+      imgEl.style.display = 'block';
+      placeholder.style.display = 'none';
+    }
+    wrapper.classList.remove('refreshing');
+    updateCount++;
+    countEl.textContent = updateCount;
+    lastUpdateEl.textContent = 'Aggiornato alle ' + getTimestamp();
+    imageNameEl.textContent  = 'debug_annotated_plants.jpg';
+    serverStatus.textContent = 'Connesso';
+    serverStatus.style.color = 'var(--accent-green)';
+  }
+
+  function onImageError() {
+    wrapper.classList.remove('refreshing');
+    if (!isLoaded) {
+      placeholder.style.display = 'flex';
+    }
+    serverStatus.textContent = 'In attesa…';
+    serverStatus.style.color = 'var(--text-muted)';
+  }
+
+  function loadImage() {
+    wrapper.classList.add('refreshing');
+    // Aggiungiamo ?t=<timestamp> per bypassare la cache del browser
+    imgEl.src = IMAGE_ENDPOINT + '?t=' + Date.now();
+  }
+
+  function refreshNow() {
+    const icon = refreshIcon;
+    icon.classList.add('rotating');
+    setTimeout(() => icon.classList.remove('rotating'), 700);
+
+    clearInterval(pollTimer);
+    loadImage();
+    pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+  }
+
+  // Avvio polling al caricamento pagina
+  document.addEventListener('DOMContentLoaded', () => {
+    loadImage();
+    pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+  });
+</script>
+
+</body>
+</html>

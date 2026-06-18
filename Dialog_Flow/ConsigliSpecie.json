@@ -6,10 +6,10 @@
   "conditionalFollowupEvents": [],
   "conditionalResponses": [],
   "context": [
-    "AnalizzaPianta"
+    "analizzapianta-followup"
   ],
   "contexts": [
-    "AnalizzaPianta"
+    "analizzapianta-followup"
   ],
   "endInteraction": false,
   "events": [],
@@ -21,26 +21,8 @@
   "responses": [
     {
       "action": "",
-      "affectedContexts": [
-        {
-          "name": "AnalizzaPianta",
-          "lifespan": 20
-        }
-      ],
+      "affectedContexts": [],
       "parameters": [
-        {
-          "noInputPromptMessages": [],
-          "noMatchPromptMessages": [],
-          "promptMessages": [],
-          "defaultValue": "",
-          "name": "specie_vegetale",
-          "dataType": "@specie_vegetale",
-          "isList": false,
-          "required": false,
-          "prompts": [],
-          "value": "$specie_vegetale",
-          "outputDialogContexts": []
-        },
         {
           "noInputPromptMessages": [],
           "noMatchPromptMessages": [],
@@ -71,6 +53,28 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Ha bisogno di più ",
+          "userDefined": false
+        },
+        {
+          "text": "acqua",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "fab5560b-f41e-447b-9f44-3582743f0dde",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [
@@ -151,17 +155,7 @@
           "meta": "@supporto"
         },
         {
-          "text": " questa ",
-          "userDefined": false
-        },
-        {
-          "text": "coltura",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": "?",
+          "text": " questa coltura?",
           "userDefined": false
         }
       ],
@@ -173,17 +167,7 @@
       "isTemplate": false,
       "data": [
         {
-          "text": "La ",
-          "userDefined": false
-        },
-        {
-          "text": "pianta",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " riceve abbastanza ",
+          "text": "La pianta riceve abbastanza ",
           "userDefined": false
         },
         {
@@ -249,17 +233,7 @@
       "isTemplate": false,
       "data": [
         {
-          "text": "La ",
-          "userDefined": false
-        },
-        {
-          "text": "pianta",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " ha bisogno di più ",
+          "text": "La pianta ha bisogno di più ",
           "userDefined": false
         },
         {
@@ -277,17 +251,7 @@
       "isTemplate": false,
       "data": [
         {
-          "text": "La ",
-          "userDefined": false
-        },
-        {
-          "text": "pianta",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " ha bisogno di più ",
+          "text": "La pianta ha bisogno di più ",
           "userDefined": false
         },
         {

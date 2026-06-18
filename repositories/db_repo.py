@@ -1,3 +1,4 @@
+import time
 import mysql.connector
 from mysql.connector import pooling, Error
 from config import Config
@@ -5,11 +6,20 @@ from utils.logger import logger
 
 class DBRepository:
     _pool = None
+    _last_init_attempt = 0
+    _init_cooldown = 60 # Cooldown di 60 secondi tra i tentativi di inizializzazione falliti
 
     @classmethod
     def initialize_pool(cls):
         """Inizializza il connection pool per MySQL una sola volta."""
+        current_time = time.time()
         if cls._pool is None:
+            # Salta il tentativo di connessione se siamo all'interno della finestra di cooldown
+            if current_time - cls._last_init_attempt < cls._init_cooldown:
+                logger.warning("Inizializzazione del pool MySQL saltata per evitare blocchi (cooldown attivo).")
+                return
+            
+            cls._last_init_attempt = current_time
             try:
                 logger.info(f"Inizializzazione del MySQL connection pool (host: {Config.DB_HOST}, user: {Config.DB_USER}, pool_size: {Config.DB_POOL_SIZE})")
                 cls._pool = pooling.MySQLConnectionPool(
@@ -19,7 +29,8 @@ class DBRepository:
                     host=Config.DB_HOST,
                     user=Config.DB_USER,
                     password=Config.DB_PASSWORD,
-                    database=Config.DB_NAME
+                    database=Config.DB_NAME,
+                    connect_timeout=2 # Timeout veloce di 2 secondi
                 )
                 logger.info("MySQL connection pool inizializzato con successo.")
             except Error as e:

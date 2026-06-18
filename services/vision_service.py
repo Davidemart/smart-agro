@@ -203,17 +203,20 @@ class VisionService:
                     plant_data["species"] = "Basilico"
                     plant_data["confidence"] = 0.85
                 else:
-                    # 1. Resize identico al test (stesso metodo di interpolazione base di OpenCV)
-                    crop_resized = cv2.resize(crop, (224, 224))
+                    # 1. Converti da BGR (OpenCV) a RGB (richiesto da Keras)
+                    crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
                     
-                    # 2. Replica esatta della funzione img_to_array() di Keras
+                    # 2. Ridimensionamento a (224, 224)
+                    crop_resized = cv2.resize(crop_rgb, (224, 224))
+                    
+                    # 3. Trasforma in array numpy e aggiungi dimensione batch
                     crop_array = np.asarray(crop_resized, dtype=np.float32)
                     crop_array = np.expand_dims(crop_array, axis=0)
                     
-                    # 3. Normalizzazione standard / 255.0
-                    crop_array = crop_array / 255.0
+                    # 4. Normalizzazione standard Teachable Machine: [-1, 1]
+                    crop_array = (crop_array / 127.5) - 1.0
                     
-                    # 4. Predizione esatta con verbose=0 come nel test
+                    # 5. Predizione esatta con verbose=0 come nel test
                     predictions = self.keras_model.predict(crop_array, verbose=0)[0]
                     best_class_idx = np.argmax(predictions)
                     confidence = float(predictions[best_class_idx])

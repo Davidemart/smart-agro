@@ -6,12 +6,6 @@
   "automatedExpansion": false,
   "entries": [
     {
-      "value": "analizza",
-      "synonyms": [
-        "analizza"
-      ]
-    },
-    {
       "value": "conta",
       "synonyms": [
         "conta",
@@ -19,17 +13,12 @@
       ]
     },
     {
-      "value": "identifica",
-      "synonyms": [
-        "identifica"
-      ]
-    },
-    {
       "value": "controlla",
       "synonyms": [
         "controlla",
         "come stanno",
-        "come sta"
+        "come sta",
+        "analizza"
       ]
     },
     {

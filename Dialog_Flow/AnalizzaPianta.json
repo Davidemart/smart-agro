@@ -17,7 +17,12 @@
   "responses": [
     {
       "action": "",
-      "affectedContexts": [],
+      "affectedContexts": [
+        {
+          "name": "analizzapianta-followup",
+          "lifespan": 5
+        }
+      ],
       "parameters": [
         {
           "noInputPromptMessages": [],
@@ -40,10 +45,8 @@
           "name": "number",
           "dataType": "@sys.number",
           "isList": true,
-          "required": true,
-          "prompts": [
-            "A quale pianta ti riferisci?"
-          ],
+          "required": false,
+          "prompts": [],
           "value": "$number",
           "outputDialogContexts": []
         },
@@ -55,10 +58,8 @@
           "name": "specie_vegetale",
           "dataType": "@specie_vegetale",
           "isList": true,
-          "required": true,
-          "prompts": [
-            "A quale pianta ti riferisci?"
-          ],
+          "required": false,
+          "prompts": [],
           "value": "$specie_vegetale",
           "outputDialogContexts": []
         }
@@ -77,6 +78,146 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " la ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di pomodoro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "3ba0aabe-6fdc-4a33-ab41-2b9d5017a22a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " il ",
+          "userDefined": false
+        },
+        {
+          "text": "rosmarino",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "b53e9830-69dc-4cb7-a148-373823c3fd8f",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come stanno",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " i ",
+          "userDefined": false
+        },
+        {
+          "text": "pomodori",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "1b42072a-0ada-4a53-963e-d93c904d08f1",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " il ",
+          "userDefined": false
+        },
+        {
+          "text": "basilico",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "b12bcc2a-10a0-49ea-ae73-874710ad2fc8",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " l'",
+          "userDefined": false
+        },
+        {
+          "text": "alloro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "bb9dc3b2-a7ee-4d7f-be0f-3903ff84ceb1",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [
