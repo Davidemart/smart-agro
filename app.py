@@ -7,6 +7,8 @@ from utils.logger import logger
 
 app = Flask(__name__)
 
+# Inizializzazione dei servizi a livello di bootstrap (fase di avvio)
+# Questo garantisce che i modelli vengano caricati in memoria una sola volta
 vision_service = None
 camera_service = None
 db_repository = None
@@ -41,11 +43,15 @@ def create_dialogflow_response(text_message, output_contexts=None):
             }
         ]
     }
+    # Se passiamo dei contesti (memoria), li aggiunge al JSON
     if output_contexts:
         response["outputContexts"] = output_contexts
     return response
 
 
+# =====================================================================
+# HANDLERS DEGLI INTENTI (Pattern Strategy)
+# =====================================================================
 
 def handle_analizza_serra(parameters):
     """
@@ -56,25 +62,31 @@ def handle_analizza_serra(parameters):
     if vision_service is None or camera_service is None:
         raise RuntimeError("Servizi non inizializzati.")
 
+    # 1. Estrazione e normalizzazione del parametro specie_vegetale
     specie_richiesta = parameters.get("specie_vegetale", "")
     if isinstance(specie_richiesta, list) and specie_richiesta:
         specie_richiesta = str(specie_richiesta[0]).lower()
     else:
         specie_richiesta = str(specie_richiesta).lower()
 
+    # Verifica se l'utente si riferisce a una specie specifica (escludendo termini generici)
     is_specie_specifica = specie_richiesta and specie_richiesta not in ["pianta", "piante", "piantina", "piantine", "colture", "coltura"]
 
+    # --- NOVITÀ: Controllo di sicurezza sull'ereditarietà dei parametri da contesto ---
     req_data = request.get_json(silent=True)
     query_text = ""
     if req_data and "queryResult" in req_data:
         query_text = req_data["queryResult"].get("queryText", "").lower()
 
+    # Parole chiave generiche e specifiche nel testo dell'utente
     generic_keywords = ["pianta", "piante", "piantina", "piantine", "coltura", "colture", "serra", "generale", "tutti", "tutte"]
     specific_keywords = ["pomodor", "basilic", "allor", "rosmarin"]
 
     contiene_generico = any(x in query_text for x in generic_keywords)
     contiene_specifico = any(x in query_text for x in specific_keywords)
 
+    # Se il testo digitato contiene parole generiche e non contiene specie specifiche, 
+    # forziamo il comportamento generico (sovrascrivendo l'eredità automatica di Dialogflow)
     if contiene_generico and not contiene_specifico:
         is_specie_specifica = False
 
@@ -91,15 +103,18 @@ def handle_analizza_serra(parameters):
             "Ho controllato la serra, ma non ho rilevato alcuna piantina. Prova a sistemare l'inquadratura."
         )
 
+    # Salvataggio delle piante nel database
     if db_repository is not None:
         try:
             db_repository.save_plants_from_serra(plants)
         except Exception as e:
             logger.error(f"Errore durante la mappatura delle piante: {e}")
 
+    # Gestione query per specie specifica
     if is_specie_specifica:
         piante_specie = [p for p in plants if p["species"].lower() == specie_richiesta]
         
+        # Estrazione dell'azione (es. "quanti" vs "come sta")
         azione_raw = parameters.get("azione", "")
         azione = azione_raw[0].lower() if isinstance(azione_raw, list) and azione_raw else str(azione_raw).lower()
         chiede_conteggio = "quant" in azione or ("conta" in azione and "controll" not in azione)
@@ -116,6 +131,7 @@ def handle_analizza_serra(parameters):
             else:
                 risposta = f"Nell'inquadratura sono presenti {count_specie} piante di '{specie_richiesta.capitalize()}'."
             
+            # Reset del contesto se non trovata, altrimenti salva/aggiorna
             contesti_uscita = None
             if session:
                 lifespan = 5 if count_specie > 0 else 0
@@ -128,9 +144,11 @@ def handle_analizza_serra(parameters):
                 }]
             return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
         else:
+            # Chiede lo stato di salute
             if not piante_specie:
                 risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
                 
+                # Reset del contesto
                 contesti_uscita = None
                 if session:
                     contesti_uscita = [{
@@ -142,6 +160,7 @@ def handle_analizza_serra(parameters):
             
             reports = []
             for p in piante_specie:
+                # Salva l'osservazione nel database per ciascuna pianta
                 if db_repository is not None:
                     try:
                         db_repository.save_single_observation(
@@ -164,6 +183,7 @@ def handle_analizza_serra(parameters):
                 + f"Vuoi che ti dia qualche consiglio sulla cura del {specie_richiesta}?"
             )
 
+            # Aggiunta contesto di followup per eventuali richieste di consigli successive
             contesti_uscita = None
             if session:
                 contesti_uscita = [{
@@ -175,6 +195,7 @@ def handle_analizza_serra(parameters):
                 }]
             return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
+    # Se la richiesta è generica, seguiamo il comportamento standard
     plant_reports = []
     for plant in plants:
         plant_reports.append(f"• Posizione {plant['plant_id']}: {plant['species']}")
@@ -186,6 +207,7 @@ def handle_analizza_serra(parameters):
         f"Se vuoi sapere come sta una di queste, chiedimi ad esempio: 'Come sta la pianta 1?'"
     )
 
+    # Reset del contesto
     req_data = request.get_json(silent=True)
     session = req_data.get("session") if req_data else None
     contesti_uscita = None
@@ -206,34 +228,42 @@ def handle_analizza_pianta(parameters):
     if vision_service is None or camera_service is None:
         raise RuntimeError("Servizi non inizializzati.")
 
+    # 1. Estrazione dei due possibili parametri da Dialogflow
     num_richiesto = parameters.get("number", "")
     specie_richiesta = parameters.get("specie_vegetale", "")
 
+    # Normalizzazione specie richiesta
     if isinstance(specie_richiesta, list) and specie_richiesta:
         specie_richiesta = str(specie_richiesta[0]).lower()
     else:
         specie_richiesta = str(specie_richiesta).lower()
 
+    # Se non c'è né il numero né la specie, chiediamo chiarimenti
     if not num_richiesto and (not specie_richiesta or specie_richiesta == "pianta"):
         return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero o la sua specie.")
 
     logger.info(f"Avvio flusso dettaglio: AnalizzaPianta (Numero richiesto: {num_richiesto}, Specie richiesta: {specie_richiesta})")
 
+    # 2. Cattura e analisi del frame corrente
     frame = camera_service.capture_frame()
     analysis = vision_service.analyse_frame(frame)
     
     plants = analysis["plants"]
     seedling_count = analysis["seedling_count"]
 
+    # 3. Logica di ricerca flessibile (Risolve il bug!)
     pianta_trovata = None
     
     if num_richiesto:
+        # Se l'utente ha detto il numero (es. "Pianta 1"), cerchiamo per ID posizione
         num_richiesto = int(num_richiesto[0]) if isinstance(num_richiesto, list) else int(num_richiesto)
         pianta_posizione = next((p for p in plants if p["plant_id"] == num_richiesto), None)
         
         if pianta_posizione:
             if specie_richiesta and specie_richiesta not in ["pianta", "piantina", "piantine", "coltura", "colture"]:
+                # Verifichiamo la corrispondenza tra la specie richiesta e quella reale nella posizione
                 if pianta_posizione["species"].lower() != specie_richiesta:
+                    # Mismatch! Cerchiamo dove si trova la specie richiesta
                     piante_specie_corrette = [p for p in plants if p["species"].lower() == specie_richiesta]
                     if not piante_specie_corrette:
                         risposta = (
@@ -257,6 +287,7 @@ def handle_analizza_pianta(parameters):
                             f"il {specie_richiesta.lower()} è {pos_info}."
                         )
                     
+                    # Impostiamo o resettiamo il contesto per eventuale follow-up
                     req_data = request.get_json(silent=True)
                     session = req_data.get("session") if req_data else None
                     contesti_uscita = None
@@ -271,15 +302,19 @@ def handle_analizza_pianta(parameters):
                         }]
                     return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
             
+            # Se la specie coincide o non è indicata
             pianta_trovata = pianta_posizione
     elif specie_richiesta:
+        # Se l'utente ha detto il nome (es. "Pomodoro"), cerchiamo tutte le piante di quella specie
         piante_specie = [p for p in plants if p["species"].lower() == specie_richiesta]
         if len(piante_specie) == 1:
             pianta_trovata = piante_specie[0]
             num_richiesto = pianta_trovata["plant_id"] # Recuperiamo il numero di posizione reale per il DB
         elif len(piante_specie) > 1:
+            # Caso duplicati! Rispondiamo con la concatenazione dei report per ciascuna pianta
             reports = []
             for p in piante_specie:
+                # Salva l'osservazione nel database per ciascuna pianta
                 if db_repository is not None:
                     try:
                         db_repository.save_single_observation(
@@ -317,6 +352,7 @@ def handle_analizza_pianta(parameters):
             
             return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
+    # 4. Gestione del risultato e salvataggio
     if pianta_trovata:
         try:
             db_repository.save_single_observation(
@@ -328,6 +364,7 @@ def handle_analizza_pianta(parameters):
         except Exception as e:
             logger.error(f"Errore DB per pianta {num_richiesto}: {e}")
 
+        # Componiamo una risposta personalizzata che mostra sia la posizione che la specie
         risposta = (
             f"Ecco il report in tempo reale per la pianta di {pianta_trovata['species'].capitalize()} (Posizione {num_richiesto}).\n"
             f"• Stato di salute: {pianta_trovata['health_status']}\n"
@@ -335,6 +372,7 @@ def handle_analizza_pianta(parameters):
             f"Vuoi che ti dia qualche consiglio sulla cura del {pianta_trovata['species']}?"
         )
         
+        # Salviamo la specie nel contesto di Dialogflow per le domande successive
         req_data = request.get_json(silent=True)
         session = req_data.get("session")
         
@@ -348,11 +386,13 @@ def handle_analizza_pianta(parameters):
         
         return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
     else:
+        # Messaggio di cortesia se la pianta richiesta non è presente nell'inquadratura
         if num_richiesto:
             risposta = f"Hai chiesto della pianta numero {num_richiesto}, ma attualmente nell'inquadratura vedo solo {seedling_count} piante."
         else:
             risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
         
+        # Reset del contesto
         req_data = request.get_json(silent=True)
         session = req_data.get("session") if req_data else None
         contesti_uscita = None
@@ -378,11 +418,13 @@ def handle_consigli_specie(parameters):
     """
     logger.info(f"Ricevuti parametri diretti: {parameters}")
     
+    # 1. Recuperiamo l'intero payload inviato da Dialogflow
     req_data = request.get_json(silent=True)
     
     specie_raw = parameters.get("specie_vegetale", "")
     supporto_raw = parameters.get("supporto", "")
     
+    # --- NOVITÀ: Se la specie è vuota o generica, la peschiamo dal contesto ---
     if not specie_raw or specie_raw == "pianta":
         contesti = req_data.get("queryResult", {}).get("outputContexts", [])
         for ctx in contesti:
@@ -393,9 +435,11 @@ def handle_consigli_specie(parameters):
                     logger.info(f"Specie recuperata dalla memoria (contesto): {specie_raw}")
                     break
 
+    # 2. Normalizzazione
     specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
     supporto = supporto_raw[0].lower() if isinstance(supporto_raw, list) and supporto_raw else str(supporto_raw).lower()
         
+    # Mini Knowledge-Base (Wiki)
     wiki = {
         "pomodoro": {
             "acqua": "Il pomodoro necessita di annaffiature abbondanti e regolari, ma evita i ristagni e non bagnare le foglie.",
@@ -429,11 +473,14 @@ def handle_consigli_specie(parameters):
         }
     }
 
+    # Teniamo traccia della specie reale da salvare nel contesto prima di sovrascriverla con "altro" per la wiki
     specie_da_salvare = specie if (specie and specie != "pianta" and specie != "altro") else None
 
+    # Se la specie non c'è, o non è presente nel dizionario, usiamo i consigli generici
     if not specie or specie not in wiki:
         specie = "altro"
 
+    # Risposta dinamica basata sui parametri
     if specie in wiki and supporto in wiki[specie]:
         risposta = f"🌿 Consigli per {specie.capitalize()} (Tema: {supporto}):\n{wiki[specie][supporto]}"
     elif supporto:
@@ -441,6 +488,7 @@ def handle_consigli_specie(parameters):
     else:
         risposta = "Non ho capito esattamente quale consiglio ti serve. Prova a chiedermi dell'acqua, del sole o del concime per una specifica pianta."
 
+    # Aggiunta/aggiornamento del contesto per conservare la memoria della pianta analizzata
     session = req_data.get("session") if req_data else None
     contesti_uscita = None
     if session and specie_da_salvare:
@@ -454,13 +502,20 @@ def handle_consigli_specie(parameters):
 
     return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
+# Mappa degli intenti registrati (Pattern Strategy)
+# La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
 INTENT_ROUTING = {
     "Default Welcome Intent": handle_saluto,
     "AnalizzaSerra": handle_analizza_serra,
     "AnalizzaPianta": handle_analizza_pianta,
     "ConsigliSpecie": handle_consigli_specie
+    #"WikiSpecie": handle_wiki_specie,         
+    #"ProblemiPianta": handle_problemi_pianta  
 }
 
+# =====================================================================
+# ENDPOINT E ROUTING PRINCIPALE
+# =====================================================================
 
 @app.route('/')
 def index():
@@ -476,12 +531,14 @@ def latest_image():
     """
     image_path = os.path.join(os.path.dirname(__file__), 'debug_annotated_plants.jpg')
     if not os.path.exists(image_path):
+        # Prova a restituire la prima immagine di test come placeholder
         test_dir = os.path.join(os.path.dirname(__file__), 'test_images')
         images = [f for f in os.listdir(test_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         if images:
             return send_file(os.path.join(test_dir, images[0]), mimetype='image/jpeg')
         return jsonify({'error': 'Nessuna immagine disponibile'}), 404
 
+    # max_age=0: niente cache, il browser chiede sempre l'immagine aggiornata
     response = send_file(image_path, mimetype='image/jpeg')
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -522,18 +579,22 @@ def reset_and_analyze():
         return jsonify({'error': 'Servizi non inizializzati.'}), 500
         
     try:
+        # 1. Resetta il DB
         success = db_repository.reset_database()
         if not success:
             return jsonify({'error': 'Impossibile resettare il database.'}), 500
             
+        # 2. Cattura e analizza
         frame = camera_service.capture_frame()
         analysis = vision_service.analyse_frame(frame)
         plants = analysis["plants"]
         seedling_count = analysis["seedling_count"]
         
+        # 3. Salva le piante trovate
         if plants:
             db_repository.save_plants_from_serra(plants)
             
+            # 4. Salva la prima osservazione per ogni pianta trovata
             for p in plants:
                 db_repository.save_single_observation(
                     position=p["plant_id"],
@@ -556,11 +617,13 @@ def webhook():
         logger.warning("Ricevuto payload non valido o vuoto.")
         return jsonify(create_dialogflow_response("Errore: Payload non conforme alle specifiche Dialogflow.")), 400
 
+    # Estrazione dell'intento
     intent_name = req_data.get('queryResult', {}).get('intent', {}).get('displayName', '')
     parameters = req_data.get('queryResult', {}).get('parameters', {})
     
     logger.info(f"Ricevuta richiesta webhook. Intento: '{intent_name}'")
 
+    # Pattern Strategy: Dispatching dell'intento
     handler = INTENT_ROUTING.get(intent_name)
     if handler:
         try:
@@ -568,6 +631,7 @@ def webhook():
             return jsonify(response_payload)
         except TimeoutError as te:
             logger.error(f"Errore di timeout durante l'esecuzione dell'handler: {te}")
+            # Fallback in caso di superamento del tempo di elaborazione (3.5s)
             fallback_text = (
                 "L'elaborazione delle immagini sta richiedendo più tempo del previsto. "
                 "Si prega di verificare la connessione della telecamera o riprovare tra qualche istante."
@@ -579,6 +643,9 @@ def webhook():
         return jsonify(create_dialogflow_response(default_text))
 
 
+# =====================================================================
+# MIDDLEWARE DI CATTURA ERRORI GLOBALE
+# =====================================================================
 
 @app.errorhandler(Exception)
 def handle_global_exceptions(error):
@@ -593,4 +660,5 @@ def handle_global_exceptions(error):
         "Spiacente, si è verificato un errore tecnico interno durante l'analisi. "
         "I nostri sistemi di monitoraggio sono stati notificati. Riprova tra poco."
     )
+    # Restituisce codice HTTP 200 con payload Dialogflow per non bloccare la chat dell'utente
     return jsonify(create_dialogflow_response(friendly_message)), 200
