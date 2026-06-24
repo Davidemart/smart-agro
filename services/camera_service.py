@@ -52,9 +52,12 @@ class CameraService:
             self._ensure_test_images_dir()
             return self._load_random_test_image()
 
+        # Riduce il buffer interno a 1 frame per minimizzare il lag di cattura
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
         try:
-            # Pulisci il buffer scartando i primi frame
-            for _ in range(5):
+            # Pulisci il buffer scartando i primi frame (ridotto da 5 a 2 per abbassare la latenza)
+            for _ in range(2):
                 cap.grab()
                 
             ret, frame = cap.read()

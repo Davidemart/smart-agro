@@ -2,6 +2,8 @@ import os
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from services.vision_service import VisionService
 from services.camera_service import CameraService
+from services.analysis_cache import analysis_cache
+from services.background_worker import BackgroundWorker
 from repositories.db_repo import DBRepository
 from utils.logger import logger
 
@@ -12,6 +14,7 @@ app = Flask(__name__)
 vision_service = None
 camera_service = None
 db_repository = None
+background_worker = None
 
 logger.info("Inizializzazione dei servizi durante il bootstrap del server...")
 try:
@@ -28,6 +31,23 @@ try:
     db_repository = DBRepository()
 except Exception as e:
     logger.critical(f"Errore inizializzazione DBRepository (Il DB non è accessibile, verranno simulati i salvataggi): {e}")
+
+# Avvio del worker di background (aggiorna la cache ogni 10 secondi)
+# Gli handler Dialogflow leggeranno sempre dalla cache → risposta istantanea
+if camera_service is not None and vision_service is not None:
+    try:
+        background_worker = BackgroundWorker(
+            camera_service=camera_service,
+            vision_service=vision_service,
+            cache=analysis_cache,
+            interval_seconds=10
+        )
+        background_worker.start()
+        logger.info("Worker di background avviato con successo.")
+    except Exception as e:
+        logger.critical(f"Errore avvio BackgroundWorker: {e}")
+else:
+    logger.warning("BackgroundWorker NON avviato: camera_service o vision_service non disponibili.")
 
 logger.info("Fase di bootstrap servizi completata.")
 
@@ -56,11 +76,16 @@ def create_dialogflow_response(text_message, output_contexts=None):
 def handle_analizza_serra(parameters):
     """
     Gestisce l'intento AnalizzaSerra (Panoramica generale).
-    Restituisce solo il conteggio, la specie e la posizione di ogni pianta.
-    Se viene richiesta una specie specifica, restituisce dettagli su di essa.
+    Legge il risultato dalla cache aggiornata dal worker in background,
+    garantendo una risposta entro il timeout di 5s di Dialogflow.
     """
-    if vision_service is None or camera_service is None:
-        raise RuntimeError("Servizi non inizializzati.")
+    # --- Lettura dalla cache (invece di catturare il frame in tempo reale) ---
+    if not analysis_cache.is_ready:
+        return create_dialogflow_response(
+            "Sto ancora completando la prima analisi della serra. Riprova tra qualche secondo!"
+        )
+    analysis = analysis_cache.result
+    logger.info(f"[AnalizzaSerra] Letto dalla cache (età: {analysis_cache.age_seconds:.1f}s).")
 
     # 1. Estrazione e normalizzazione del parametro specie_vegetale
     specie_richiesta = parameters.get("specie_vegetale", "")
@@ -72,7 +97,7 @@ def handle_analizza_serra(parameters):
     # Verifica se l'utente si riferisce a una specie specifica (escludendo termini generici)
     is_specie_specifica = specie_richiesta and specie_richiesta not in ["pianta", "piante", "piantina", "piantine", "colture", "coltura"]
 
-    # --- NOVITÀ: Controllo di sicurezza sull'ereditarietà dei parametri da contesto ---
+    # Controllo di sicurezza sull'ereditarietà dei parametri da contesto
     req_data = request.get_json(silent=True)
     query_text = ""
     if req_data and "queryResult" in req_data:
@@ -85,15 +110,12 @@ def handle_analizza_serra(parameters):
     contiene_generico = any(x in query_text for x in generic_keywords)
     contiene_specifico = any(x in query_text for x in specific_keywords)
 
-    # Se il testo digitato contiene parole generiche e non contiene specie specifiche, 
+    # Se il testo digitato contiene parole generiche e non contiene specie specifiche,
     # forziamo il comportamento generico (sovrascrivendo l'eredità automatica di Dialogflow)
     if contiene_generico and not contiene_specifico:
         is_specie_specifica = False
 
     logger.info(f"Avvio flusso panoramica: AnalizzaSerra (Specie richiesta: {specie_richiesta}, Specifica: {is_specie_specifica})")
-    
-    frame = camera_service.capture_frame()
-    analysis = vision_service.analyse_frame(frame)
     
     seedling_count = analysis["seedling_count"]
     plants = analysis["plants"]
@@ -224,10 +246,8 @@ def handle_analizza_pianta(parameters):
     """
     Gestisce l'intento AnalizzaPianta (Dettaglio singola pianta).
     Analizza lo stato di salute cercando sia per NUMERO (posizione) che per NOME SPECIE.
+    Legge il risultato dalla cache aggiornata dal worker in background.
     """
-    if vision_service is None or camera_service is None:
-        raise RuntimeError("Servizi non inizializzati.")
-
     # 1. Estrazione dei due possibili parametri da Dialogflow
     num_richiesto = parameters.get("number", "")
     specie_richiesta = parameters.get("specie_vegetale", "")
@@ -242,11 +262,15 @@ def handle_analizza_pianta(parameters):
     if not num_richiesto and (not specie_richiesta or specie_richiesta == "pianta"):
         return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero o la sua specie.")
 
-    logger.info(f"Avvio flusso dettaglio: AnalizzaPianta (Numero richiesto: {num_richiesto}, Specie richiesta: {specie_richiesta})")
+    # --- Lettura dalla cache (invece di catturare il frame in tempo reale) ---
+    if not analysis_cache.is_ready:
+        return create_dialogflow_response(
+            "Sto ancora completando la prima analisi della serra. Riprova tra qualche secondo!"
+        )
+    analysis = analysis_cache.result
+    logger.info(f"[AnalizzaPianta] Letto dalla cache (età: {analysis_cache.age_seconds:.1f}s).")
 
-    # 2. Cattura e analisi del frame corrente
-    frame = camera_service.capture_frame()
-    analysis = vision_service.analyse_frame(frame)
+    logger.info(f"Avvio flusso dettaglio: AnalizzaPianta (Numero richiesto: {num_richiesto}, Specie richiesta: {specie_richiesta})")
     
     plants = analysis["plants"]
     seedling_count = analysis["seedling_count"]
@@ -574,7 +598,7 @@ def get_db_data():
 
 @app.route('/api/reset-and-analyze', methods=['POST'])
 def reset_and_analyze():
-    """Resetta il DB e ri-analizza l'inquadratura da zero, creando nuovi ID."""
+    """Resetta il DB, forza un'analisi immediata e aggiorna la cache."""
     if db_repository is None or vision_service is None or camera_service is None:
         return jsonify({'error': 'Servizi non inizializzati.'}), 500
         
@@ -584,17 +608,21 @@ def reset_and_analyze():
         if not success:
             return jsonify({'error': 'Impossibile resettare il database.'}), 500
             
-        # 2. Cattura e analizza
+        # 2. Cattura e analizza (analisi forzata fuori dal ciclo del worker)
         frame = camera_service.capture_frame()
         analysis = vision_service.analyse_frame(frame)
         plants = analysis["plants"]
         seedling_count = analysis["seedling_count"]
+
+        # 3. Aggiorna la cache con il risultato fresco
+        analysis_cache.update(analysis)
+        logger.info("[reset-and-analyze] Cache aggiornata con il nuovo risultato.")
         
-        # 3. Salva le piante trovate
+        # 4. Salva le piante trovate
         if plants:
             db_repository.save_plants_from_serra(plants)
             
-            # 4. Salva la prima osservazione per ogni pianta trovata
+            # 5. Salva la prima osservazione per ogni pianta trovata
             for p in plants:
                 db_repository.save_single_observation(
                     position=p["plant_id"],
@@ -607,6 +635,17 @@ def reset_and_analyze():
     except Exception as e:
         logger.error(f"Errore durante il reset e ri-analisi: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cache-status')
+def cache_status():
+    """Restituisce lo stato attuale della cache di analisi (utile per il debug)."""
+    return jsonify({
+        'is_ready': analysis_cache.is_ready,
+        'age_seconds': analysis_cache.age_seconds,
+        'worker_alive': background_worker.is_alive if background_worker else False,
+        'message': analysis_cache.get_status_message()
+    })
 
 
 @app.route('/webhook', methods=['POST'])

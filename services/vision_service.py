@@ -98,9 +98,10 @@ class VisionService:
             self.yolo_net = None
 
     def _check_timeout(self, start_time, phase_name):
-        """Verifica se il tempo totale trascorso supera la soglia critica di 3500ms."""
+        """Verifica se il tempo totale trascorso supera la soglia critica di 4500ms.
+        Dialogflow impone un limite di 5s, lasciamo 500ms di margine per la risposta HTTP."""
         elapsed = (time.time() - start_time) * 1000
-        if elapsed > 3500:
+        if elapsed > 4500:
             logger.warning(f"TIMEOUT CRITICO: La pipeline ha superato il budget temporale dopo {phase_name} ({elapsed:.2f}ms).")
             raise TimeoutError(f"Pipeline interrotta a causa di latenza eccessiva durante: {phase_name}")
 
