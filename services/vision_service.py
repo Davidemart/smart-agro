@@ -258,9 +258,13 @@ class VisionService:
             results["plants"].append(plant_data)
             logger.info(f"Analisi Pianta {idx+1} completata: {plant_data['species']}, {plant_data['anomaly_pct']}% anomalia.")
             
-            # --- NOVITÀ: Disegno su Immagine ---
-            # Scegliamo il colore (Verde se sana, Rosso se critica)
-            color = (0, 0, 255) if plant_data["anomaly_pct"] > 40.0 else (0, 255, 0)
+            # Scegliamo il colore (Rosso se > 70%, Giallo se > 40%, Verde altrimenti)
+            if plant_data["anomaly_pct"] > 70.0:
+                color = (0, 0, 255)   # Rosso
+            elif plant_data["anomaly_pct"] > 40.0:
+                color = (0, 255, 255)  # Giallo
+            else:
+                color = (0, 255, 0)    # Verde
             
             # Disegna il rettangolo
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
@@ -278,12 +282,8 @@ class VisionService:
             try:
                 # Salva l'immagine nella cartella del progetto
                 cv2.imwrite("debug_annotated_plants.jpg", annotated_frame)
-                
-                # Apre la finestra non bloccante (si aggiorna ad ogni richiesta)
-                cv2.imshow("Smart-Agri: Rilevamento Piante", annotated_frame)
-                cv2.waitKey(1) # 1 millisecondo di attesa per permettere a OpenCV di renderizzare la finestra senza bloccare Flask
             except Exception as e:
-                logger.error(f"Errore durante il rendering della finestra OpenCV: {e}")
+                logger.error(f"Errore durante il salvataggio dell'immagine: {e}")
 
         logger.info(f"Latenza Totale Pipeline: {int((time.time() - pipeline_start) * 1000)}ms")
         

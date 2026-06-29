@@ -18,14 +18,18 @@
         "controlla",
         "come stanno",
         "come sta",
-        "analizza"
+        "analizza",
+        "analisi"
       ]
     },
     {
       "value": "spiega",
       "synonyms": [
         "spiega",
-        "dimmi di più"
+        "dimmi di più",
+        "parlami",
+        "wiki",
+        "curiosità"
       ]
     }
   ],

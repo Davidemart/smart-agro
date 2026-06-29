@@ -5,12 +5,8 @@
   "condition": "",
   "conditionalFollowupEvents": [],
   "conditionalResponses": [],
-  "context": [
-    "analizzapianta-followup"
-  ],
-  "contexts": [
-    "analizzapianta-followup"
-  ],
+  "context": [],
+  "contexts": [],
   "endInteraction": false,
   "events": [],
   "fallbackIntent": false,
@@ -21,7 +17,12 @@
   "responses": [
     {
       "action": "",
-      "affectedContexts": [],
+      "affectedContexts": [
+        {
+          "name": "consiglispecie-followup",
+          "lifespan": 10
+        }
+      ],
       "parameters": [
         {
           "noInputPromptMessages": [],

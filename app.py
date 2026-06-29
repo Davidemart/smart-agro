@@ -97,14 +97,16 @@ def handle_analizza_serra(parameters):
     # Verifica se l'utente si riferisce a una specie specifica (escludendo termini generici)
     is_specie_specifica = specie_richiesta and specie_richiesta not in ["pianta", "piante", "piantina", "piantine", "colture", "coltura"]
 
-    # Controllo di sicurezza sull'ereditarietà dei parametri da contesto
+    # Lettura del payload completo (usato sia per query_text che per session)
     req_data = request.get_json(silent=True)
     query_text = ""
-    if req_data and "queryResult" in req_data:
-        query_text = req_data["queryResult"].get("queryText", "").lower()
+    session = None
+    if req_data:
+        query_text = req_data.get("queryResult", {}).get("queryText", "").lower()
+        session = req_data.get("session")
 
     # Parole chiave generiche e specifiche nel testo dell'utente
-    generic_keywords = ["pianta", "piante", "piantina", "piantine", "coltura", "colture", "serra", "generale", "tutti", "tutte"]
+    generic_keywords = ["piant", "piantin", "coltur", "serra", "generale", "tutt"]
     specific_keywords = ["pomodor", "basilic", "allor", "rosmarin"]
 
     contiene_generico = any(x in query_text for x in generic_keywords)
@@ -140,9 +142,6 @@ def handle_analizza_serra(parameters):
         azione_raw = parameters.get("azione", "")
         azione = azione_raw[0].lower() if isinstance(azione_raw, list) and azione_raw else str(azione_raw).lower()
         chiede_conteggio = "quant" in azione or ("conta" in azione and "controll" not in azione)
-
-        req_data = request.get_json(silent=True)
-        session = req_data.get("session") if req_data else None
 
         if chiede_conteggio:
             count_specie = len(piante_specie)
@@ -229,9 +228,7 @@ def handle_analizza_serra(parameters):
         f"Se vuoi sapere come sta una di queste, chiedimi ad esempio: 'Come sta la pianta 1?'"
     )
 
-    # Reset del contesto
-    req_data = request.get_json(silent=True)
-    session = req_data.get("session") if req_data else None
+    # Reset del contesto (richiesta generica: nessuna specie specifica in memoria)
     contesti_uscita = None
     if session:
         contesti_uscita = [{
@@ -248,6 +245,10 @@ def handle_analizza_pianta(parameters):
     Analizza lo stato di salute cercando sia per NUMERO (posizione) che per NOME SPECIE.
     Legge il risultato dalla cache aggiornata dal worker in background.
     """
+    # 0. Lettura payload (una sola volta per tutta la funzione)
+    req_data = request.get_json(silent=True)
+    session = req_data.get("session") if req_data else None
+
     # 1. Estrazione dei due possibili parametri da Dialogflow
     num_richiesto = parameters.get("number", "")
     specie_richiesta = parameters.get("specie_vegetale", "")
@@ -312,8 +313,6 @@ def handle_analizza_pianta(parameters):
                         )
                     
                     # Impostiamo o resettiamo il contesto per eventuale follow-up
-                    req_data = request.get_json(silent=True)
-                    session = req_data.get("session") if req_data else None
                     contesti_uscita = None
                     if session:
                         lifespan = 5 if piante_specie_corrette else 0
@@ -361,9 +360,6 @@ def handle_analizza_pianta(parameters):
                 + f"Vuoi che ti dia qualche consiglio sulla cura del {specie_richiesta}?"
             )
             
-            req_data = request.get_json(silent=True)
-            session = req_data.get("session") if req_data else None
-            
             contesti_uscita = None
             if session:
                 contesti_uscita = [{
@@ -373,7 +369,7 @@ def handle_analizza_pianta(parameters):
                         "specie_vegetale": specie_richiesta
                     }
                 }]
-            
+
             return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
     # 4. Gestione del risultato e salvataggio
@@ -396,18 +392,18 @@ def handle_analizza_pianta(parameters):
             f"Vuoi che ti dia qualche consiglio sulla cura del {pianta_trovata['species']}?"
         )
         
-        # Salviamo la specie nel contesto di Dialogflow per le domande successive
-        req_data = request.get_json(silent=True)
-        session = req_data.get("session")
-        
-        contesti_uscita = [{
-            "name": f"{session}/contexts/analizzapianta-followup",
-            "lifespanCount": 5,
-            "parameters": {
-                "specie_vegetale": pianta_trovata['species'].lower()
-            }
-        }]
-        
+        # Salviamo la specie e il numero nel contesto di Dialogflow per le domande successive
+        contesti_uscita = None
+        if session:
+            contesti_uscita = [{
+                "name": f"{session}/contexts/analizzapianta-followup",
+                "lifespanCount": 5,
+                "parameters": {
+                    "specie_vegetale": pianta_trovata['species'].lower(),
+                    "number": num_richiesto
+                }
+            }]
+
         return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
     else:
         # Messaggio di cortesia se la pianta richiesta non è presente nell'inquadratura
@@ -416,9 +412,7 @@ def handle_analizza_pianta(parameters):
         else:
             risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
         
-        # Reset del contesto
-        req_data = request.get_json(silent=True)
-        session = req_data.get("session") if req_data else None
+        # Reset del contesto (pianta non trovata)
         contesti_uscita = None
         if session:
             contesti_uscita = [{
@@ -435,10 +429,12 @@ def handle_saluto(parameters):
         "Ciao! Sono l'assistente Smart-Agri. Posso avviare l'analisi delle tue piante in tempo reale. Dimmi pure quando procedere!"
     )
 
-#TODO: Nella wiki metteremo: nome scientifico, zona, info generali, ecc...
+
 def handle_consigli_specie(parameters):
     """
     Gestisce l'intento ConsigliSpecie.
+    Identifica la pianta a cui si fa riferimento (dal contesto o dai parametri)
+    e in base all'analisi cromatica (stato cromatico/ingiallimento) fornisce consigli mirati.
     """
     logger.info(f"Ricevuti parametri diretti: {parameters}")
     
@@ -446,81 +442,238 @@ def handle_consigli_specie(parameters):
     req_data = request.get_json(silent=True)
     
     specie_raw = parameters.get("specie_vegetale", "")
+    num_raw = parameters.get("number", "")
     supporto_raw = parameters.get("supporto", "")
-    
-    # --- NOVITÀ: Se la specie è vuota o generica, la peschiamo dal contesto ---
-    if not specie_raw or specie_raw == "pianta":
-        contesti = req_data.get("queryResult", {}).get("outputContexts", [])
-        for ctx in contesti:
-            if "analizzapianta-followup" in ctx.get("name", "").lower():
-                parametri_contesto = ctx.get("parameters", {})
-                if "specie_vegetale" in parametri_contesto:
-                    specie_raw = parametri_contesto["specie_vegetale"]
-                    logger.info(f"Specie recuperata dalla memoria (contesto): {specie_raw}")
-                    break
 
-    # 2. Normalizzazione
+    # --- Recupero specie e numero da uno dei contesti di follow-up validi ---
+    CONTESTI_CONSIGLIO = [
+        "analizzapianta-followup",
+        "consiglispecie-followup",
+        "wikispecie-followup",
+    ]
+    contesti = req_data.get("queryResult", {}).get("outputContexts", []) if req_data else []
+    for ctx in contesti:
+        ctx_name = ctx.get("name", "").lower()
+        if any(c in ctx_name for c in CONTESTI_CONSIGLIO):
+            parametri_contesto = ctx.get("parameters", {})
+            if not specie_raw:
+                specie_raw = parametri_contesto.get("specie_vegetale", "")
+                if specie_raw:
+                    logger.info(f"[ConsigliSpecie] Specie dal contesto '{ctx_name}': {specie_raw}")
+            if not num_raw:
+                num_raw = parametri_contesto.get("number", "")
+                if num_raw:
+                    logger.info(f"[ConsigliSpecie] Numero pianta dal contesto '{ctx_name}': {num_raw}")
+            if specie_raw and num_raw:
+                break
+
+    # 2. Normalizzazione parametri
     specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
     supporto = supporto_raw[0].lower() if isinstance(supporto_raw, list) and supporto_raw else str(supporto_raw).lower()
+    
+    plant_id = None
+    if num_raw:
+        try:
+            plant_id = int(num_raw[0]) if isinstance(num_raw, list) else int(num_raw)
+        except (ValueError, TypeError):
+            pass
+
+    # 3. Lettura analisi in tempo reale dalla cache
+    if not analysis_cache.is_ready:
+        return create_dialogflow_response(
+            "Sto ancora completando l'analisi della serra. Riprova tra qualche secondo!"
+        )
+    analysis = analysis_cache.result
+    plants = analysis.get("plants", [])
+
+    # 4. Ricerca della pianta di riferimento
+    pianta_riferimento = None
+    if plant_id:
+        pianta_riferimento = next((p for p in plants if p["plant_id"] == plant_id), None)
+    
+    if not pianta_riferimento and specie and specie not in ["pianta", "piantina", "piantine"]:
+        piante_specie = [p for p in plants if p["species"].lower() == specie]
+        if piante_specie:
+            # Scegliamo la prima occorrenza per quella specie
+            pianta_riferimento = piante_specie[0]
+
+    # Se non c'è una pianta specifica ma abbiamo piante rilevate, facciamo riferimento alla prima
+    if not pianta_riferimento and plants:
+        pianta_riferimento = plants[0]
+
+    # 5. Determinazione stato e consigli mirati
+    if pianta_riferimento:
+        specie_reale = pianta_riferimento["species"].lower()
+        anomaly_pct = pianta_riferimento["anomaly_pct"]
+        id_pianta = pianta_riferimento["plant_id"]
         
-    # Mini Knowledge-Base (Wiki)
-    wiki = {
+        # Categorizzazione dello stato di salute
+        if anomaly_pct > 70.0:
+            stato = "critico"
+        elif anomaly_pct > 40.0:
+            stato = "anomalo"
+        else:
+            stato = "sano"
+    else:
+        # Fallback se non c'è nessuna pianta analizzata
+        specie_reale = specie if (specie and specie not in ["pianta", "piantina", "piantine"]) else "altro"
+        anomaly_pct = 0.0
+        id_pianta = None
+        stato = "sano"
+
+    # Database dei consigli strutturato per Specie -> Stato -> Tema/Supporto
+    consigli_db = {
         "pomodoro": {
-            "acqua": "Il pomodoro necessita di annaffiature abbondanti e regolari, ma evita i ristagni e non bagnare le foglie.",
-            "sole": "I pomodori amano l'esposizione in pieno sole per maturare correttamente.",
-            "concime": "Usa un concime ricco di potassio e fosforo durante la fioritura.",
-            "preservare": "Per evitare l'ingiallimento e i funghi, garantisci un buon circolo d'aria e usa trattamenti rameici se necessario."
+            "critico": {
+                "general": "Rimuovi immediatamente tutte le foglie e i rami gravemente ingialliti/secchi per fermare la diffusione di peronospora. Se il fusto principale è marcio, elimina l'intera pianta.",
+                "acqua": "Sospendi l'irrigazione se il terreno è fradicio (sospetto marciume radicale), altrimenti irriga solo alla base senza bagnare il fogliame dopo aver rimosso le foglie marce.",
+                "sole": "Il sole battente stressa ulteriormente la pianta compromessa. Ombreggiala temporaneamente con una rete finché non dà segni di ripresa.",
+                "concime": "Non concimare! Il fertilizzante su radici danneggiate o sotto forte stress provocherebbe bruciature letali. Pota le parti malate prima di nutrire la pianta.",
+                "preservare": "Isola o rimuovi le parti fortemente infette. Utilizza un trattamento rameico per proteggere i fusti e le foglie sane superstiti."
+            },
+            "anomalo": {
+                "general": "La pianta mostra un ingiallimento moderato. Consigliamo di spostare il vaso a mezz'ombra o ombreggiare parzialmente la pianta e irrigare regolarmente.",
+                "acqua": "Annaffia solo alla base al mattino presto, mantenendo il terreno umido ma senza ristagni. Aumenta la frequenza se il terreno è arido.",
+                "sole": "Se esposta a sole cocente e temperature estreme, le foglie si stanno scottando. Spostala in una zona leggermente all'ombra nelle ore più calde.",
+                "concime": "Applica un concime ricco di potassio e calcio per rinforzare le difese e prevenire il marciume apicale del pomodoro.",
+                "preservare": "Rimuovi le prime foglie basse ingiallite e migliora il circolo d'aria intorno alla pianta per prevenire attacchi fungini."
+            },
+            "sano": {
+                "general": "La pianta di pomodoro è in ottima salute. Continua così!",
+                "acqua": "Mantieni un'irrigazione costante e regolare, preferibilmente nelle prime ore del mattino.",
+                "sole": "Assicura un'esposizione in pieno sole (almeno 6 ore al giorno) per favorire la maturazione dei frutti.",
+                "concime": "Applica un fertilizzante organico per orto ogni 15 giorni per sostenere la fioritura e fruttificazione.",
+                "preservare": "Raccogli regolarmente i germogli ascellari (femminelle) per convogliare le energie sui rami principali."
+            }
         },
         "basilico": {
-            "acqua": "Il basilico vuole un terreno sempre umido, ma ben drenato. Annaffialo la mattina presto.",
-            "sole": "Preferisce zone luminose ma al riparo dal sole diretto cocente delle ore centrali.",
-            "concime": "Un fertilizzante azotato ogni 15 giorni aiuta a mantenere le foglie rigogliose.",
-            "preservare": "Per preservare la pianta, cima i fiori appena spuntano: così le foglie manterranno il loro aroma."
+            "critico": {
+                "general": "Pota drasticamente tutti i fusti a circa 3 cm dalla terra per stimolare nuovi getti sani, o rimuovi la pianta se il fusto è nero e marcio (fusariosi).",
+                "acqua": "Rinvasi d'emergenza se il terreno è saturo. Taglia via le parti necrotiche e non bagnare finché il terreno non è quasi asciutto.",
+                "sole": "Sposta immediatamente il basilico all'ombra completa in un luogo fresco; il sole diretto ne accelererebbe il disseccamento totale.",
+                "concime": "Evita qualsiasi concime che affaticherebbe le radici sofferenti. Pota e attendi la ricrescita all'ombra.",
+                "preservare": "Elimina le foglie annerite o ammuffite e mantieni la pianta isolata per non diffondere spore fungine."
+            },
+            "anomalo": {
+                "general": "Il basilico ha un principio di ingiallimento fogliare. Spostalo ad una parte più all'ombra, innaffialo maggiormente ed evita ristagni.",
+                "acqua": "Irriga più spesso ma con quantità moderate. Il terreno deve rimanere fresco e umido come una spugna strizzata.",
+                "sole": "Il sole diretto delle ore centrali è troppo forte. Colloca la pianta in una zona a mezz'ombra o luce filtrata.",
+                "concime": "Somministra un concime azotato leggero per ridare colore verde brillante alle foglie stentate.",
+                "preservare": "Cima le infiorescenze non appena compaiono per evitare che la pianta smetta di produrre foglie aromatiche."
+            },
+            "sano": {
+                "general": "Il basilico è rigoglioso e sano.",
+                "acqua": "Irriga regolarmente mantenendo il terreno costantemente umido ma ben drenato.",
+                "sole": "Posizionalo in un luogo luminoso ma riparato dal sole battente del pomeriggio.",
+                "concime": "Una leggera concimazione organica ogni 2-3 settimane supporterà la produzione di nuove foglie.",
+                "preservare": "Raccogli le foglie cimando i rametti dall'alto per stimolare la crescita a cespuglio."
+            }
         },
         "alloro": {
-            "acqua": "L'alloro resiste bene alla siccità. Annaffia solo quando il terreno è completamente asciutto.",
-            "sole": "Cresce bene sia al sole che a mezz'ombra.",
-            "concime": "Non richiede concimazioni frequenti; basta un po' di stallatico in primavera.",
-            "preservare": "Proteggilo dalle cocciniglie controllando periodicamente la pagina inferiore delle foglie."
+            "critico": {
+                "general": "L'alloro è robusto; un danno >70% indica asfissia radicale grave o cocciniglia. Pota i rami secchi fino al legno sano e tratta con anticoccidico.",
+                "acqua": "Sospendi subito le bagnature. Se in vaso, svasa la pianta e taglia le radici marce prima di rinvasare con terriccio nuovo ben drenato.",
+                "sole": "Tieni la pianta in una zona ombreggiata e fresca per favorire il recupero dell'apparato radicale danneggiato.",
+                "concime": "Nessun concime. Le piante di alloro debilitate non tollerano sali minerali in eccesso alle radici.",
+                "preservare": "Rimuovi manualmente le cocciniglie residue usando un batuffolo di cotone imbevuto di alcol."
+            },
+            "anomalo": {
+                "general": "L'alloro ha un leggero stress, probabilmente da clorosi o ristagno d'acqua. Spostalo in una zona moderatamente all'ombra ed evita annaffiature frequenti.",
+                "acqua": "Bagna solo quando il terreno è completamente asciutto nei primi centimetri.",
+                "sole": "Se la pianta è esposta a forte calore riflesso (es. contro un muro assolato), spostala in una posizione più fresca a mezz'ombra.",
+                "concime": "Somministra del ferro chelato per contrastare l'ingiallimento fogliare tipico della clorosi ferrica.",
+                "preservare": "Ispeziona la pagina inferiore delle foglie per escludere attacchi iniziali di parassiti."
+            },
+            "sano": {
+                "general": "L'alloro è in perfetta salute.",
+                "acqua": "Annaffia solo sporadicamente; tollera molto bene la siccità.",
+                "sole": "Collocalo in pieno sole o a mezz'ombra a seconda dello spazio disponibile.",
+                "concime": "Una manciata di stallatico in autunno o primavera è più che sufficiente.",
+                "preservare": "Effettua potature di forma o contenimento all'inizio della primavera."
+            }
         },
         "rosmarino": {
-            "acqua": "Il rosmarino tollera molto bene la siccità. Annaffia solo quando il terreno è completamente asciutto, evitando assolutamente i ristagni.",
-            "sole": "Ama le esposizioni in pieno sole e ben arieggiate.",
-            "concime": "È poco esigente. Basta una leggera concimazione organica all'inizio della primavera o in autunno.",
-            "preservare": "Per prevenire i marciumi radicali (il suo peggior nemico), assicurati che il vaso o il terreno abbiano un drenaggio eccellente."
+            "critico": {
+                "general": "Il rosmarino soffre l'eccesso idrico. Se è al 70% di ingiallimento, le radici stanno marcendo: pota i rami secchi, rinvasa in terra sabbiosa e asciutta e non bagnare per due settimane.",
+                "acqua": "Interrompi del tutto le annaffiature. Il rosmarino rischia di morire per asfissia se il terreno rimane bagnato.",
+                "sole": "Posizionalo nel punto più soleggiato e ventilato possibile per far asciugare rapidamente il pane di terra.",
+                "concime": "Non concimare. Il rosmarino predilige terreni poveri ed aridi; i nutrienti extra peggiorerebbero la situazione.",
+                "preservare": "Rimuovi i rami privi di aghi e assicurati che i fori di drenaggio del vaso siano liberi."
+            },
+            "anomalo": {
+                "general": "Il rosmarino mostra segni di stress da umidità. Sposta il vaso in pieno sole, riduci drasticamente l'acqua e controlla il drenaggio.",
+                "acqua": "Annaffia pochissimo e solo quando la terra è secca da diversi giorni.",
+                "sole": "Garantisci il massimo delle ore di sole diretto per stimolare la ripresa vegetativa.",
+                "concime": "Non fertilizzare. Piuttosto, aggiungi della sabbia o argilla espansa al terreno per migliorare il drenaggio.",
+                "preservare": "Usa vasi di terracotta che permettono una migliore traspirazione rispetto a quelli di plastica."
+            },
+            "sano": {
+                "general": "Il rosmarino è in ottima salute.",
+                "acqua": "Irriga solo in periodi di prolungata siccità e calore estremo.",
+                "sole": "Mantieni la pianta esposta in pieno sole.",
+                "concime": "Non necessita di alcuna concimazione.",
+                "preservare": "Effettua leggere cimature per mantenere la pianta compatta ed evitare che il fusto si lignifichi eccessivamente."
+            }
         },
         "altro": {
-            "acqua": "In generale, prima di annaffiare, tocca sempre il terreno: dai acqua solo se i primi centimetri sono asciutti per evitare marciumi e asfissia radicale.",
-            "sole": "Assicura una buona illuminazione, preferibilmente luce diffusa. Se non conosci la specie, evita il sole diretto nelle ore più calde.",
-            "concime": "Puoi usare un concime universale bilanciato durante il periodo primaverile ed estivo, seguendo sempre le dosi minime consigliate.",
-            "preservare": "Mantieni la pianta pulita rimuovendo eventuali foglie secche. Osserva periodicamente il fusto e le foglie per intercettare per tempo la comparsa di parassiti."
+            "critico": {
+                "general": "L'ingiallimento è severo. Pota drasticamente le parti morte o malate per favorire i nuovi germogli e riduci lo stress idrico.",
+                "acqua": "Se la terra è inzuppata, sospendi le annaffiature e fai asciugare; se è arida, irriga abbondantemente ma senza ristagni.",
+                "sole": "Sposta la pianta in una zona ombreggiata e fresca al riparo dal sole diretto finché non si stabilizza.",
+                "concime": "Non concimare la pianta in stato di shock per evitare di bruciare l'apparato radicale compromesso.",
+                "preservare": "Isola la pianta per evitare la diffusione di eventuali infezioni fungine o parassitarie."
+            },
+            "anomalo": {
+                "general": "La pianta mostra un leggero ingiallimento. Spostala in una zona più all'ombra, irriga moderatamente al bisogno e valuta un concime leggero.",
+                "acqua": "Regola l'irrigazione bagnando solo quando lo strato superficiale del terreno risulta asciutto al tatto.",
+                "sole": "Evita il sole diretto nelle ore centrali; preferisci una posizione a mezz'ombra o con luce filtrata.",
+                "concime": "Somministra un fertilizzante universale bilanciato a dosaggio dimezzato per stimolare la ripresa.",
+                "preservare": "Elimina le foglie ingiallite per stimolare la pianta a produrre nuova vegetazione sana."
+            },
+            "sano": {
+                "general": "La pianta è in buona salute.",
+                "acqua": "Irriga secondo le necessità tipiche della pianta, evitando eccessi.",
+                "sole": "Mantieni l'esposizione alla luce adatta alla tipologia di pianta.",
+                "concime": "Applica un concime universale una volta al mese durante la stagione vegetativa.",
+                "preservare": "Tieni pulito il fogliame e monitora periodicamente lo stato di salute generale."
+            }
         }
     }
 
-    # Teniamo traccia della specie reale da salvare nel contesto prima di sovrascriverla con "altro" per la wiki
-    specie_da_salvare = specie if (specie and specie != "pianta" and specie != "altro") else None
+    # Risoluzione della specie per il database consigli
+    chiave_specie = specie_reale if specie_reale in consigli_db else "altro"
+    
+    # Risoluzione del tema/supporto richiesto
+    chiave_supporto = supporto if supporto in ["acqua", "sole", "concime", "preservare"] else "general"
 
-    # Se la specie non c'è, o non è presente nel dizionario, usiamo i consigli generici
-    if not specie or specie not in wiki:
-        specie = "altro"
+    # Selezione del consiglio specifico
+    consiglio = consigli_db[chiave_specie][stato][chiave_supporto]
 
-    # Risposta dinamica basata sui parametri
-    if specie in wiki and supporto in wiki[specie]:
-        risposta = f"🌿 Consigli per {specie.capitalize()} (Tema: {supporto}):\n{wiki[specie][supporto]}"
-    elif supporto:
-        risposta = f"In generale, per quanto riguarda '{supporto}', assicurati sempre di non esagerare per non stressare la pianta. Hai bisogno di dettagli su una specie in particolare come pomodoro o basilico?"
+    # Composizione risposta per l'utente
+    prefisso = ""
+    if id_pianta:
+        prefisso = f"🌿 **Consigli mirati per {specie_reale.capitalize()} (Posizione {id_pianta})**:\n"
+        prefisso += f"• Rilevato ingiallimento: **{anomaly_pct}%** (Stato: *{stato.upper()}*)\n"
     else:
-        risposta = "Non ho capito esattamente quale consiglio ti serve. Prova a chiedermi dell'acqua, del sole o del concime per una specifica pianta."
+        prefisso = f"🌿 **Consigli per {specie_reale.capitalize()}**:\n"
+        prefisso += f"• Stato di salute stimato: *{stato.upper()}*\n"
+        
+    if chiave_supporto != "general":
+        prefisso += f"• Focus richiesto: *{chiave_supporto.capitalize()}*\n"
+        
+    risposta = f"{prefisso}\n👉 {consiglio}"
 
-    # Aggiunta/aggiornamento del contesto per conservare la memoria della pianta analizzata
+    # Aggiornamento del contesto per i follow-up successivi
+    specie_da_salvare = specie_reale if (specie_reale and specie_reale != "altro") else ""
     session = req_data.get("session") if req_data else None
     contesti_uscita = None
-    if session and specie_da_salvare:
+    if session:
         contesti_uscita = [{
             "name": f"{session}/contexts/analizzapianta-followup",
             "lifespanCount": 5,
             "parameters": {
-                "specie_vegetale": specie_da_salvare
+                "specie_vegetale": specie_da_salvare,
+                "number": id_pianta if id_pianta else ""
             }
         }]
 
@@ -529,85 +682,154 @@ def handle_consigli_specie(parameters):
 def handle_wiki_specie(parameters):
     """
     Gestisce l'intento WikiSpecie.
-    Interroga il database per fornire informazioni dettagliate sulla specie richiesta.
-    """
-    specie_raw = parameters.get("specie_vegetale", "")
-    sezione_raw = parameters.get("sezione_richiesta", "")
-    
-    # 1. Recuperiamo l'intero payload inviato da Dialogflow
-    req_data = request.get_json(silent=True)
-    
-    if not specie_raw or specie_raw == "pianta":
-        contesti = req_data.get("queryResult", {}).get("outputContexts", [])
-        for ctx in contesti:
-            if "analizzapianta-followup" in ctx.get("name", "").lower():
-                parametri_contesto = ctx.get("parameters", {})
-                if "specie_vegetale" in parametri_contesto:
-                    specie_raw = parametri_contesto["specie_vegetale"]
-                    break
 
-    specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
-    sezione = sezione_raw[0].lower() if isinstance(sezione_raw, list) and sezione_raw else str(sezione_raw).lower()
+    Parametri ricevuti da Dialogflow (definiti in WikiSpecie.json):
+      - sezione_richiesta (@sezione_richiesta): la sezione wiki richiesta.
+            Valori canonici: "nome scientifico" | "descrizione" | "coltivazione" | "usi"
+      - azione (@azione): azione generica (spiega / dimmi di più / curiosità …)
+            usata quando l'utente chiede info generali senza specificare la sezione.
+
+    La specie vegetale NON è un parametro diretto dell'intento: viene ereditata
+    dai contesti di input (analizzapianta-followup, analizzaserra-followup,
+    consiglispecie-followup, wikispecie-followup) che Dialogflow injetta nel payload.
+
+    Output:
+      - Emette 'wikispecie-followup' (lifespan 10) per i follow-up successivi
+        sulla stessa pianta.
+      - Mantiene 'analizzapianta-followup' aggiornato per l'interoperabilità
+        con gli altri intenti (ConsigliSpecie, AnalizzaPianta …).
+    """
+    req_data = request.get_json(silent=True)
+    if not req_data:
+        return create_dialogflow_response("Errore interno: payload mancante.")
+
+    # ------------------------------------------------------------------
+    # 1. Parametri diretti (sezione richiesta e azione)
+    # ------------------------------------------------------------------
+    sezione_raw = parameters.get("sezione_richiesta", "")
+    azione_raw  = parameters.get("azione", "")
+
+    # Normalizzazione: Dialogflow può restituire lista o stringa
+    sezione = (sezione_raw[0] if isinstance(sezione_raw, list) and sezione_raw else str(sezione_raw)).lower().strip()
+    azione  = (azione_raw[0]  if isinstance(azione_raw,  list) and azione_raw  else str(azione_raw)).lower().strip()
+
+    logger.info(f"[WikiSpecie] sezione='{sezione}', azione='{azione}'")
+
+    # ------------------------------------------------------------------
+    # 2. Recupero della specie dai contesti di input
+    #    (nell'ordine di priorità: wikispecie-followup, analizzapianta-followup,
+    #     analizzaserra-followup, consiglispecie-followup)
+    # ------------------------------------------------------------------
+    CONTESTI_VALIDI = [
+        "wikispecie-followup",
+        "analizzapianta-followup",
+        "analizzaserra-followup",
+        "consiglispecie-followup",
+    ]
+
+    specie = ""
+    contesti_input = req_data.get("queryResult", {}).get("outputContexts", [])
+    for ctx in contesti_input:
+        ctx_name = ctx.get("name", "").lower()
+        if any(c in ctx_name for c in CONTESTI_VALIDI):
+            param_ctx = ctx.get("parameters", {})
+            valore = param_ctx.get("specie_vegetale", "")
+            if isinstance(valore, list):
+                valore = valore[0] if valore else ""
+            valore = str(valore).lower().strip()
+            if valore and valore not in ("pianta", "piantina", ""):
+                specie = valore
+                logger.info(f"[WikiSpecie] Specie recuperata dal contesto '{ctx_name}': '{specie}'")
+                break
 
     if not specie:
-        return create_dialogflow_response("Di quale pianta vuoi conoscere le informazioni sulla wiki?")
+        return create_dialogflow_response(
+            "Non ho capito a quale pianta ti riferisci. Prova prima ad analizzarla con 'Come sta il pomodoro?' e poi chiedimi informazioni sulla wiki."
+        )
 
+    # ------------------------------------------------------------------
+    # 3. Recupero informazioni dal database
+    # ------------------------------------------------------------------
     if db_repository is None:
         return create_dialogflow_response("Il database della wiki non è attualmente raggiungibile.")
 
     info = db_repository.get_wiki_info(specie)
-    
     if not info:
-        return create_dialogflow_response(f"Mi dispiace, ma non ho ancora informazioni dettagliate su '{specie.capitalize()}' nella mia wiki.")
+        return create_dialogflow_response(
+            f"Mi dispiace, non ho ancora informazioni wiki su '{specie.capitalize()}'. "
+            f"Le specie disponibili sono: Pomodoro, Basilico, Alloro, Rosmarino."
+        )
 
-    # Formattazione risposta a blocchi
-    if "nomenclatura" in sezione or "nome" in sezione or "famiglia" in sezione:
+    # ------------------------------------------------------------------
+    # 4. Selezione del blocco di risposta in base alla sezione richiesta.
+    #    Rendiamo il matching flessibile controllando sia i valori canonici
+    #    sia le parole chiave (sinonimi) per evitare fallimenti dovuti a
+    #    valori non normalizzati o liste di parametri.
+    # ------------------------------------------------------------------
+    # Categorie di parole chiave
+    kw_nomenclatura = ["nome", "scientifico", "nomenclatura", "famiglia", "botanica", "chiama", "classificazione", "nome scientifico"]
+    kw_descrizione  = ["descrizione", "portamento", "altezza", "origine", "cresce", "aspetto", "com'è"]
+    kw_coltivazione = ["coltivazione", "esposizione", "acqua", "terreno", "temperatura", "clima", "sole", "luce", "innaffiare", "freddo"]
+    kw_usi          = ["usi", "uso", "usa", "tossic", "velen", "mangia", "commestibile", "proprietà", "serve"]
+
+    if any(x in sezione for x in kw_nomenclatura):
         risposta = (
-            f"📖 **Nomenclatura per {info['common_names']}**:\n"
+            f"📖 **Nomenclatura — {info['common_names']}**\n"
             f"• Nome Scientifico: {info['scientific_name']}\n"
             f"• Famiglia Botanica: {info['botanical_family']}"
         )
-    elif "descrizione" in sezione or "cresce" in sezione or "origine" in sezione:
+    elif any(x in sezione for x in kw_descrizione):
         risposta = (
-            f"📖 **Descrizione per {info['common_names']}**:\n"
+            f"📖 **Descrizione — {info['common_names']}**\n"
             f"• Portamento: {info['plant_habit']}\n"
-            f"• Altezza Massima: {info['max_height_cm']} cm\n"
-            f"• Regione d'Origine: {info['origin_region']}"
+            f"• Altezza massima: {info['max_height_cm']} cm\n"
+            f"• Regione d'origine: {info['origin_region']}"
         )
-    elif "coltivazione" in sezione or "acqua" in sezione or "sole" in sezione or "freddo" in sezione or "terreno" in sezione:
+    elif any(x in sezione for x in kw_coltivazione):
         risposta = (
-            f"📖 **Coltivazione per {info['common_names']}**:\n"
+            f"📖 **Coltivazione — {info['common_names']}**\n"
             f"• Esposizione: {info['sun_exposure']}\n"
-            f"• Bisogno Idrico: {info['water_needs']}\n"
-            f"• Tipo di Terreno: {info['soil_type']}\n"
-            f"• Temperatura Minima tollerata: {info['min_temp_celsius']} °C"
+            f"• Bisogno idrico: {info['water_needs']}\n"
+            f"• Tipo di terreno: {info['soil_type']}\n"
+            f"• Temperatura minima tollerata: {info['min_temp_celsius']} °C"
         )
-    elif "usi" in sezione or "veleno" in sezione or "serve" in sezione or "uso" in sezione or "tossic" in sezione:
-        tossicita = "Sì" if info['is_toxic'] else "No"
+    elif any(x in sezione for x in kw_usi):
+        tossicita = "Sì ⚠️" if info['is_toxic'] else "No ✅"
         risposta = (
-            f"📖 **Usi per {info['common_names']}**:\n"
+            f"📖 **Usi — {info['common_names']}**\n"
             f"• Tossicità: {tossicita}\n"
             f"• Usi Principali: {info['primary_uses']}"
         )
     else:
-        # Risposta generica se la sezione non è specificata chiaramente
+        # Nessuna sezione specifica o azione generica (spiega / dimmi di più / curiosità)
+        tossicita = "Sì ⚠️" if info['is_toxic'] else "No ✅"
         risposta = (
-            f"📖 **Wiki: {info['common_names']}** ({info['scientific_name']})\n"
-            f"Famiglia: {info['botanical_family']} | Origine: {info['origin_region']}.\n"
-            f"Cosa vuoi sapere in particolare? (Nomenclatura, Descrizione, Coltivazione, Usi)"
+            f"📖 **Wiki — {info['common_names']}** ({info['scientific_name']})\n"
+            f"Famiglia: {info['botanical_family']} | Origine: {info['origin_region']}\n"
+            f"Altezza max: {info['max_height_cm']} cm | Tossicità: {tossicita}\n\n"
+            f"Puoi chiedermi dettagli su: *Nomenclatura*, *Descrizione*, *Coltivazione* o *Usi*."
         )
 
-    # Conserviamo la specie in memoria
-    session = req_data.get("session") if req_data else None
+    # ------------------------------------------------------------------
+    # 5. Emissione dei contesti di output per i follow-up
+    #    - wikispecie-followup  (lifespan 10): segue il JSON originale
+    #    - analizzapianta-followup (lifespan 5): interoperabilità con altri intenti
+    # ------------------------------------------------------------------
+    session = req_data.get("session", "")
     contesti_uscita = None
     if session:
-        contesti_uscita = [{
-            "name": f"{session}/contexts/analizzapianta-followup",
-            "lifespanCount": 5,
-            "parameters": {
-                "specie_vegetale": specie
+        contesti_uscita = [
+            {
+                "name": f"{session}/contexts/wikispecie-followup",
+                "lifespanCount": 10,
+                "parameters": {"specie_vegetale": specie}
+            },
+            {
+                "name": f"{session}/contexts/analizzapianta-followup",
+                "lifespanCount": 10,
+                "parameters": {"specie_vegetale": specie}
             }
-        }]
+        ]
 
     return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
@@ -615,11 +837,11 @@ def handle_wiki_specie(parameters):
 # La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
 INTENT_ROUTING = {
     "Default Welcome Intent": handle_saluto,
-    "AnalizzaSerra": handle_analizza_serra,
-    "AnalizzaPianta": handle_analizza_pianta,
-    "ConsigliSpecie": handle_consigli_specie,
-    "WikiSpecie": handle_wiki_specie
-    #"ProblemiPianta": handle_problemi_pianta  
+    "AnalizzaSerra":          handle_analizza_serra,
+    "AnalizzaPianta":         handle_analizza_pianta,
+    "ConsigliSpecie":         handle_consigli_specie,
+    "WikiSpecie":             handle_wiki_specie,
+    # "ProblemiPianta":       handle_problemi_pianta,
 }
 
 # =====================================================================

@@ -1,65 +1,355 @@
 {
+  "id": "81b7ff72-1f0e-4ac3-a52f-809eed7752af",
   "name": "WikiSpecie",
   "auto": true,
+  "condition": "",
+  "conditionalFollowupEvents": [],
+  "conditionalResponses": [],
+  "context": [],
   "contexts": [],
+  "endInteraction": false,
+  "events": [],
+  "fallbackIntent": false,
+  "liveAgentHandoff": false,
+  "parentId": null,
+  "followUpIntents": [],
+  "priority": 500000,
   "responses": [
     {
-      "resetContexts": false,
       "action": "WikiSpecie",
-      "affectedContexts": [],
+      "affectedContexts": [
+        {
+          "name": "wikispecie-followup",
+          "lifespan": 10
+        }
+      ],
       "parameters": [
         {
-          "id": "1",
-          "name": "specie_vegetale",
-          "required": true,
-          "dataType": "@sys.any",
-          "value": "$specie_vegetale",
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
           "defaultValue": "#analizzapianta-followup.specie_vegetale",
-          "isList": false,
+          "name": "sezione_richiesta",
+          "dataType": "@sezione_richiesta",
+          "isList": true,
+          "required": false,
           "prompts": [
             "Di quale pianta vuoi conoscere le informazioni sulla wiki?"
           ],
-          "promptMessages": [],
-          "noMatchPromptMessages": [],
-          "noInputPromptMessages": [],
+          "value": "$sezione_richiesta",
           "outputDialogContexts": []
         },
         {
-          "id": "2",
-          "name": "sezione_richiesta",
-          "required": false,
-          "dataType": "@sys.any",
-          "value": "$sezione_richiesta",
-          "defaultValue": "",
-          "isList": false,
-          "prompts": [],
-          "promptMessages": [],
-          "noMatchPromptMessages": [],
           "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "azione",
+          "dataType": "@azione",
+          "isList": true,
+          "required": false,
+          "prompts": [],
+          "value": "$azione",
           "outputDialogContexts": []
         }
       ],
+      "defaultResponsePlatforms": {},
       "messages": [
         {
-          "type": "0",
-          "title": "",
-          "textToSpeech": "",
-          "lang": "it",
+          "type": "message",
+          "condition": "",
           "speech": [
             "Cerco informazioni sulla wiki..."
-          ],
-          "condition": ""
+          ]
         }
       ],
-      "speech": []
+      "resetContexts": false
     }
   ],
-  "priority": 500000,
-  "webhookUsed": true,
+  "rootParentId": null,
+  "templates": [],
+  "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Parlami",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " della pianta",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "eb56d73e-8da0-42f0-991e-c9f29491aab0",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come si coltiva",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "7c53cbd7-88ba-4c7d-a618-980b7bd3a19b",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Quanto ",
+          "userDefined": false
+        },
+        {
+          "text": "cresce",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " la pianta in genere?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "2ee6d774-2996-4b92-afd9-0a0459ff49e8",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "A quale ",
+          "userDefined": false
+        },
+        {
+          "text": "famiglia",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " appartiene?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "9d8ceb3e-da91-4494-8929-ba35571586cb",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Di che ",
+          "userDefined": false
+        },
+        {
+          "text": "famiglia",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " è la pianta?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "cd88cdac-f48d-4da6-a5c5-f50e52eccc2c",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Qual è l'",
+          "userDefined": false
+        },
+        {
+          "text": "origine",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " della pianta?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "c402f2c4-14c6-42ca-a77a-45592ddc0d26",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dove ",
+          "userDefined": false
+        },
+        {
+          "text": "cresce",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "b0ad1ddc-4407-497c-9d89-13d466f09be1",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dimmi la ",
+          "userDefined": false
+        },
+        {
+          "text": "wiki",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        }
+      ],
+      "count": 0,
+      "id": "95bf2d8e-6241-4418-bd11-4512d4a2fbad",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dammi delle ",
+          "userDefined": false
+        },
+        {
+          "text": "curiosità",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " sulla pianta",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "ae208fbb-d4cb-4772-9e83-9977cbcbef1a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "A cosa serve",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "c3873c64-b8ef-45d3-ac5e-7c6c44ba9907",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "È ",
+          "userDefined": false
+        },
+        {
+          "text": "velenosa?",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "c3ce0673-c285-4490-ab6c-6572d7fce2e8",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dammi la ",
+          "userDefined": false
+        },
+        {
+          "text": "descrizione",
+          "userDefined": true,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "0899c8a1-ea2c-4508-9a69-8a9f0882a7af",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Qual è ",
+          "userDefined": false
+        },
+        {
+          "text": "il nome scientifico",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "5da60d7f-2ad2-4dc4-9744-6918cc370f37",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dimmi di più",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " sulla pianta",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "5a86fe6b-4211-43d1-9948-053c345aa646",
+      "updated": null
+    }
+  ],
   "webhookForSlotFilling": false,
-  "fallbackIntent": false,
-  "events": [],
-  "conditionalResponses": [],
-  "condition": "",
-  "conditionalFollowupEvents": []
+  "webhookUsed": true
 }

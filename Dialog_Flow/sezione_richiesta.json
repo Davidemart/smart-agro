@@ -1,0 +1,63 @@
+{
+  "isRegexp": false,
+  "isEnum": false,
+  "allowFuzzyExtraction": false,
+  "name": "sezione_richiesta",
+  "automatedExpansion": true,
+  "entries": [
+    {
+      "value": "nome scientifico",
+      "synonyms": [
+        "nome scientifico",
+        "numenclatura",
+        "nome",
+        "famiglia",
+        "nome comune",
+        "come si chiama",
+        "classificazione botanica"
+      ]
+    },
+    {
+      "value": "descrizione",
+      "synonyms": [
+        "descrizione",
+        "com'è fatto",
+        "quanto cresce",
+        "altezza",
+        "origini",
+        "da dove viene",
+        "aspetto"
+      ]
+    },
+    {
+      "value": "coltivazione",
+      "synonyms": [
+        "coltivazione",
+        "come si coltiva",
+        "esposizione",
+        "terreno",
+        "freddo",
+        "clima",
+        "temperatura",
+        "sole",
+        "luce",
+        "acqua",
+        "innaffiare"
+      ]
+    },
+    {
+      "value": "usi",
+      "synonyms": [
+        "usi",
+        "a cosa serve",
+        "proprietà",
+        "velenoso",
+        "tossico",
+        "si mangia",
+        "commestibile"
+      ]
+    }
+  ],
+  "id": "d28f92f8-3dc7-4f4d-9928-0f44fb4f16c4",
+  "isOverridable": false
+}
