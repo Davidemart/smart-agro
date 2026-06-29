@@ -1,0 +1,65 @@
+{
+  "name": "WikiSpecie",
+  "auto": true,
+  "contexts": [],
+  "responses": [
+    {
+      "resetContexts": false,
+      "action": "WikiSpecie",
+      "affectedContexts": [],
+      "parameters": [
+        {
+          "id": "1",
+          "name": "specie_vegetale",
+          "required": true,
+          "dataType": "@sys.any",
+          "value": "$specie_vegetale",
+          "defaultValue": "#analizzapianta-followup.specie_vegetale",
+          "isList": false,
+          "prompts": [
+            "Di quale pianta vuoi conoscere le informazioni sulla wiki?"
+          ],
+          "promptMessages": [],
+          "noMatchPromptMessages": [],
+          "noInputPromptMessages": [],
+          "outputDialogContexts": []
+        },
+        {
+          "id": "2",
+          "name": "sezione_richiesta",
+          "required": false,
+          "dataType": "@sys.any",
+          "value": "$sezione_richiesta",
+          "defaultValue": "",
+          "isList": false,
+          "prompts": [],
+          "promptMessages": [],
+          "noMatchPromptMessages": [],
+          "noInputPromptMessages": [],
+          "outputDialogContexts": []
+        }
+      ],
+      "messages": [
+        {
+          "type": "0",
+          "title": "",
+          "textToSpeech": "",
+          "lang": "it",
+          "speech": [
+            "Cerco informazioni sulla wiki..."
+          ],
+          "condition": ""
+        }
+      ],
+      "speech": []
+    }
+  ],
+  "priority": 500000,
+  "webhookUsed": true,
+  "webhookForSlotFilling": false,
+  "fallbackIntent": false,
+  "events": [],
+  "conditionalResponses": [],
+  "condition": "",
+  "conditionalFollowupEvents": []
+}

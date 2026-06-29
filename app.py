@@ -526,14 +526,99 @@ def handle_consigli_specie(parameters):
 
     return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
+def handle_wiki_specie(parameters):
+    """
+    Gestisce l'intento WikiSpecie.
+    Interroga il database per fornire informazioni dettagliate sulla specie richiesta.
+    """
+    specie_raw = parameters.get("specie_vegetale", "")
+    sezione_raw = parameters.get("sezione_richiesta", "")
+    
+    # 1. Recuperiamo l'intero payload inviato da Dialogflow
+    req_data = request.get_json(silent=True)
+    
+    if not specie_raw or specie_raw == "pianta":
+        contesti = req_data.get("queryResult", {}).get("outputContexts", [])
+        for ctx in contesti:
+            if "analizzapianta-followup" in ctx.get("name", "").lower():
+                parametri_contesto = ctx.get("parameters", {})
+                if "specie_vegetale" in parametri_contesto:
+                    specie_raw = parametri_contesto["specie_vegetale"]
+                    break
+
+    specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
+    sezione = sezione_raw[0].lower() if isinstance(sezione_raw, list) and sezione_raw else str(sezione_raw).lower()
+
+    if not specie:
+        return create_dialogflow_response("Di quale pianta vuoi conoscere le informazioni sulla wiki?")
+
+    if db_repository is None:
+        return create_dialogflow_response("Il database della wiki non è attualmente raggiungibile.")
+
+    info = db_repository.get_wiki_info(specie)
+    
+    if not info:
+        return create_dialogflow_response(f"Mi dispiace, ma non ho ancora informazioni dettagliate su '{specie.capitalize()}' nella mia wiki.")
+
+    # Formattazione risposta a blocchi
+    if "nomenclatura" in sezione or "nome" in sezione or "famiglia" in sezione:
+        risposta = (
+            f"📖 **Nomenclatura per {info['common_names']}**:\n"
+            f"• Nome Scientifico: {info['scientific_name']}\n"
+            f"• Famiglia Botanica: {info['botanical_family']}"
+        )
+    elif "descrizione" in sezione or "cresce" in sezione or "origine" in sezione:
+        risposta = (
+            f"📖 **Descrizione per {info['common_names']}**:\n"
+            f"• Portamento: {info['plant_habit']}\n"
+            f"• Altezza Massima: {info['max_height_cm']} cm\n"
+            f"• Regione d'Origine: {info['origin_region']}"
+        )
+    elif "coltivazione" in sezione or "acqua" in sezione or "sole" in sezione or "freddo" in sezione or "terreno" in sezione:
+        risposta = (
+            f"📖 **Coltivazione per {info['common_names']}**:\n"
+            f"• Esposizione: {info['sun_exposure']}\n"
+            f"• Bisogno Idrico: {info['water_needs']}\n"
+            f"• Tipo di Terreno: {info['soil_type']}\n"
+            f"• Temperatura Minima tollerata: {info['min_temp_celsius']} °C"
+        )
+    elif "usi" in sezione or "veleno" in sezione or "serve" in sezione or "uso" in sezione or "tossic" in sezione:
+        tossicita = "Sì" if info['is_toxic'] else "No"
+        risposta = (
+            f"📖 **Usi per {info['common_names']}**:\n"
+            f"• Tossicità: {tossicita}\n"
+            f"• Usi Principali: {info['primary_uses']}"
+        )
+    else:
+        # Risposta generica se la sezione non è specificata chiaramente
+        risposta = (
+            f"📖 **Wiki: {info['common_names']}** ({info['scientific_name']})\n"
+            f"Famiglia: {info['botanical_family']} | Origine: {info['origin_region']}.\n"
+            f"Cosa vuoi sapere in particolare? (Nomenclatura, Descrizione, Coltivazione, Usi)"
+        )
+
+    # Conserviamo la specie in memoria
+    session = req_data.get("session") if req_data else None
+    contesti_uscita = None
+    if session:
+        contesti_uscita = [{
+            "name": f"{session}/contexts/analizzapianta-followup",
+            "lifespanCount": 5,
+            "parameters": {
+                "specie_vegetale": specie
+            }
+        }]
+
+    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+
 # Mappa degli intenti registrati (Pattern Strategy)
 # La chiave corrisponde al queryResult['intent']['displayName'] impostato su Dialogflow
 INTENT_ROUTING = {
     "Default Welcome Intent": handle_saluto,
     "AnalizzaSerra": handle_analizza_serra,
     "AnalizzaPianta": handle_analizza_pianta,
-    "ConsigliSpecie": handle_consigli_specie
-    #"WikiSpecie": handle_wiki_specie,         
+    "ConsigliSpecie": handle_consigli_specie,
+    "WikiSpecie": handle_wiki_specie
     #"ProblemiPianta": handle_problemi_pianta  
 }
 

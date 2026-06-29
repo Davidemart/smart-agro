@@ -782,11 +782,21 @@
 <!-- =====================================================================
      DIALOGFLOW MESSENGER WIDGET
 ====================================================================== -->
+<!-- 
 <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
 <df-messenger
   intent="WELCOME"
   chat-title="Smart-Agri_Assistant"
   agent-id="0f04319a-bc04-4d48-ab6b-2a227c9d1dcc"
+  language-code="it"
+></df-messenger>
+-->
+
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="Prova_Smart_Agri"
+  agent-id="7a36bdbc-b08f-440d-b1d7-d30ec2c5a0c1"
   language-code="it"
 ></df-messenger>
 
@@ -975,6 +985,137 @@
   document.addEventListener('DOMContentLoaded', () => {
     loadImage();
     pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+  });
+</script>
+
+<!-- =====================================================================
+     VOICE ASSISTANT (Web Speech API)
+====================================================================== -->
+<style>
+  #voice-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 100px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-green), var(--accent-teal));
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(56, 189, 108, 0.4);
+    z-index: 1000;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #voice-btn:hover {
+    transform: scale(1.1);
+  }
+  #voice-btn.recording {
+    animation: pulse-record 1.5s infinite;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
+  }
+  @keyframes pulse-record {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  }
+</style>
+<button id="voice-btn" title="Parla con l'assistente">🎤</button>
+
+<script>
+  const voiceBtn = document.getElementById('voice-btn');
+  let isRecording = false;
+  window.lastInputWasVoice = false;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'it-IT';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    voiceBtn.addEventListener('click', () => {
+      if (isRecording) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    });
+
+    recognition.addEventListener('start', () => {
+      isRecording = true;
+      voiceBtn.classList.add('recording');
+    });
+
+    recognition.addEventListener('end', () => {
+      isRecording = false;
+      voiceBtn.classList.remove('recording');
+    });
+
+    recognition.addEventListener('result', (event) => {
+      const transcript = event.results[0][0].transcript;
+      console.log('Testo riconosciuto:', transcript);
+      window.lastInputWasVoice = true;
+      
+      const dfMessenger = document.querySelector('df-messenger');
+      if (dfMessenger) {
+        dfMessenger.setAttribute('expand', 'true');
+        setTimeout(() => {
+            const dfChat = dfMessenger.shadowRoot.querySelector('df-messenger-chat');
+            if (dfChat) {
+                const dfUserInput = dfChat.shadowRoot.querySelector('df-messenger-user-input');
+                if (dfUserInput) {
+                    const inputElement = dfUserInput.shadowRoot.querySelector('input');
+                    const sendButton = dfUserInput.shadowRoot.querySelector('button');
+                    if (inputElement && sendButton) {
+                        inputElement.value = transcript;
+                        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // Attiva il pulsante per assicurarci che possa essere cliccato
+                        sendButton.removeAttribute('disabled');
+                        
+                        // Invia il messaggio simulando il keydown Enter o il click
+                        inputElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        // Fallback click
+                        setTimeout(() => sendButton.click(), 50);
+                    }
+                }
+            }
+        }, 300);
+      }
+    });
+  } else {
+    voiceBtn.style.display = 'none';
+    console.warn('SpeechRecognition non supportato dal browser.');
+  }
+
+  window.addEventListener('df-response-received', (event) => {
+    if (!window.lastInputWasVoice) return;
+    
+    try {
+        const messages = event.detail.response.queryResult.fulfillmentMessages;
+        let textToSpeak = "";
+        messages.forEach(msg => {
+           if (msg.text && msg.text.text && msg.text.text.length > 0) {
+               textToSpeak += msg.text.text[0] + " ";
+           }
+        });
+        
+        if (textToSpeak && window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'it-IT';
+            window.speechSynthesis.speak(utterance);
+        }
+    } catch (e) {
+        console.error("Errore nella sintesi vocale:", e);
+    }
+    window.lastInputWasVoice = false;
   });
 </script>
 

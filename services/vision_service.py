@@ -233,26 +233,26 @@ class VisionService:
                 logger.error(f"Errore Keras su pianta {idx+1}: {e}")
 
             # --- Segmentazione Anomalie (OpenCV) sul Crop ---
-            #try:
-            #    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-            #    lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
-            #    upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
-            #    mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
-            #    
-            #    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-            #    mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            #    mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
-            #    
-            #    total_pixels = crop.shape[0] * crop.shape[1]
-            #    white_pixels = cv2.countNonZero(mask_final)
-            #    
-            #    if total_pixels > 0:
-            #        anomaly_pct = float((white_pixels / total_pixels) * 100.0)
-            #        plant_data["anomaly_pct"] = round(anomaly_pct, 2)
-            #        if anomaly_pct > 30.0:
-            #            plant_data["health_status"] = "Critico - Rilevato forte ingiallimento"
-            #except Exception as e:
-            #    logger.error(f"Errore OpenCV su pianta {idx+1}: {e}")
+            try:
+                hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+                lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
+                upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
+                mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+                
+                kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+                mask_cleaned = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+                mask_final = cv2.morphologyEx(mask_cleaned, cv2.MORPH_CLOSE, kernel)
+                
+                total_pixels = crop.shape[0] * crop.shape[1]
+                white_pixels = cv2.countNonZero(mask_final)
+                
+                if total_pixels > 0:
+                    anomaly_pct = float((white_pixels / total_pixels) * 100.0)
+                    plant_data["anomaly_pct"] = round(anomaly_pct, 2)
+                    if anomaly_pct > 40.0:
+                        plant_data["health_status"] = "Critico - Rilevato forte ingiallimento"
+            except Exception as e:
+                logger.error(f"Errore OpenCV su pianta {idx+1}: {e}")
 
             # Salvataggio dati singola pianta e check timeout
             results["plants"].append(plant_data)
@@ -260,10 +260,7 @@ class VisionService:
             
             # --- NOVITÀ: Disegno su Immagine ---
             # Scegliamo il colore (Verde se sana, Rosso se critica)
-            #color = (0, 0, 255) if plant_data["anomaly_pct"] > 30.0 else (0, 255, 0)
-
-            #per ora è sempre verde
-            color = (0, 255, 0)
+            color = (0, 0, 255) if plant_data["anomaly_pct"] > 40.0 else (0, 255, 0)
             
             # Disegna il rettangolo
             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)

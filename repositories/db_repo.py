@@ -43,6 +43,7 @@ class DBRepository:
         # Assicura che il pool sia inizializzato
         if self._pool is None:
             self.initialize_pool()
+        self.initialize_wiki_data()
 
     def _get_connection(self):
         """Prende una connessione dal pool."""
@@ -194,6 +195,67 @@ class DBRepository:
             if connection:
                 connection.rollback()
             return False
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()
+
+    def initialize_wiki_data(self):
+        """Popola la tabella wiki_species se vuota."""
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            cursor = connection.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM wiki_species")
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                logger.info("Popolamento tabella wiki_species con dati predefiniti...")
+                insert_query = """
+                    INSERT INTO wiki_species (
+                        scientific_name, common_names, botanical_family, 
+                        plant_habit, max_height_cm, origin_region, 
+                        sun_exposure, water_needs, soil_type, min_temp_celsius, 
+                        is_toxic, primary_uses
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                data = [
+                    ('Solanum lycopersicum', 'Pomodoro', 'Solanaceae', 'Erbacea', 200, 'America Centrale', 'Pieno sole', 'Elevata', 'Drenante e ricco', 10.0, False, 'Culinario'),
+                    ('Ocimum basilicum', 'Basilico', 'Lamiaceae', 'Erbacea', 60, 'Asia tropicale', 'Pieno sole o mezz\'ombra', 'Elevata', 'Drenante', 10.0, False, 'Culinario, Officinale'),
+                    ('Laurus nobilis', 'Alloro', 'Lauraceae', 'Arbusto/Albero', 1000, 'Bacino del Mediterraneo', 'Pieno sole o mezz\'ombra', 'Moderata', 'Drenante', -5.0, False, 'Culinario, Ornamentale'),
+                    ('Salvia rosmarinus', 'Rosmarino', 'Lamiaceae', 'Arbusto', 200, 'Bacino del Mediterraneo', 'Pieno sole', 'Bassa', 'Drenante e arido', -10.0, False, 'Culinario, Officinale, Ornamentale')
+                ]
+                cursor.executemany(insert_query, data)
+                connection.commit()
+                logger.info("Tabella wiki_species popolata con successo.")
+        except Error as e:
+            logger.error(f"Errore durante il popolamento di wiki_species: {e}")
+            if connection:
+                connection.rollback()
+        finally:
+            if cursor: cursor.close()
+            if connection: connection.close()
+
+    def get_wiki_info(self, species):
+        """Recupera le informazioni di wiki_species per un determinato nome comune o scientifico."""
+        connection = None
+        cursor = None
+        try:
+            connection = self._get_connection()
+            cursor = connection.cursor(dictionary=True)
+            
+            query = """
+                SELECT * FROM wiki_species 
+                WHERE LOWER(common_names) LIKE %s OR LOWER(scientific_name) LIKE %s
+            """
+            search_term = f"%{species.lower()}%"
+            cursor.execute(query, (search_term, search_term))
+            result = cursor.fetchone()
+            return result
+        except Error as e:
+            logger.error(f"Errore durante il recupero delle info wiki per {species}: {e}")
+            return None
         finally:
             if cursor: cursor.close()
             if connection: connection.close()
