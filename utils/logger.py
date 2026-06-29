@@ -1,8 +1,8 @@
 import logging
 import sys
 
-# Configura il logger
 def setup_logger():
+    """Configura il logger."""
     logger = logging.getLogger("smart_agri")
     logger.setLevel(logging.INFO)
     

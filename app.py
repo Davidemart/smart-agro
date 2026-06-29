@@ -652,16 +652,16 @@ def handle_consigli_specie(parameters):
     # Composizione risposta per l'utente
     prefisso = ""
     if id_pianta:
-        prefisso = f"🌿 **Consigli mirati per {specie_reale.capitalize()} (Posizione {id_pianta})**:\n"
-        prefisso += f"• Rilevato ingiallimento: **{anomaly_pct}%** (Stato: *{stato.upper()}*)\n"
+        prefisso = f"Consigli mirati per {specie_reale.capitalize()} (Posizione {id_pianta}):\n"
+        prefisso += f"• Rilevato ingiallimento: {anomaly_pct}% (Stato: {stato.upper()})\n"
     else:
-        prefisso = f"🌿 **Consigli per {specie_reale.capitalize()}**:\n"
-        prefisso += f"• Stato di salute stimato: *{stato.upper()}*\n"
+        prefisso = f"Consigli per {specie_reale.capitalize()}:\n"
+        prefisso += f"• Stato di salute stimato: {stato.upper()}\n"
         
     if chiave_supporto != "general":
-        prefisso += f"• Focus richiesto: *{chiave_supporto.capitalize()}*\n"
+        prefisso += f"• Focus richiesto: {chiave_supporto.capitalize()}\n"
         
-    risposta = f"{prefisso}\n👉 {consiglio}"
+    risposta = f"{prefisso}\n {consiglio}"
 
     # Aggiornamento del contesto per i follow-up successivi
     specie_da_salvare = specie_reale if (specie_reale and specie_reale != "altro") else ""
@@ -767,47 +767,47 @@ def handle_wiki_specie(parameters):
     #    valori non normalizzati o liste di parametri.
     # ------------------------------------------------------------------
     # Categorie di parole chiave
-    kw_nomenclatura = ["nome", "scientifico", "nomenclatura", "famiglia", "botanica", "chiama", "classificazione", "nome scientifico"]
-    kw_descrizione  = ["descrizione", "portamento", "altezza", "origine", "cresce", "aspetto", "com'è"]
-    kw_coltivazione = ["coltivazione", "esposizione", "acqua", "terreno", "temperatura", "clima", "sole", "luce", "innaffiare", "freddo"]
-    kw_usi          = ["usi", "uso", "usa", "tossic", "velen", "mangia", "commestibile", "proprietà", "serve"]
+    kw_nomenclatura = ["nome", "scientifico", "nomenclatura", "famiglia", "botanica", "chiama", "classificazione", "specie", "nome scientifico"]
+    kw_descrizione  = ["descrizione", "portamento", "altezza", "origine", "cresce", "aspetto", "com'è", "ambiente", "vive", "dove", "provenienza"]
+    kw_coltivazione = ["coltivazione", "esposizione", "acqua", "terreno", "temperatura", "clima", "sole", "luce", "innaffiare", "freddo", "cura", "coltiva", "piantare", "mantenere"]
+    kw_usi          = ["usi", "uso", "usa", "tossic", "velen", "mangia", "commestibile", "proprietà", "serve", "utilizz", "cucina", "mangiare"]
 
     if any(x in sezione for x in kw_nomenclatura):
         risposta = (
-            f"📖 **Nomenclatura — {info['common_names']}**\n"
+            f"Nomenclatura — {info['common_names']}\n"
             f"• Nome Scientifico: {info['scientific_name']}\n"
             f"• Famiglia Botanica: {info['botanical_family']}"
         )
     elif any(x in sezione for x in kw_descrizione):
         risposta = (
-            f"📖 **Descrizione — {info['common_names']}**\n"
+            f"Descrizione — {info['common_names']}\n"
             f"• Portamento: {info['plant_habit']}\n"
             f"• Altezza massima: {info['max_height_cm']} cm\n"
             f"• Regione d'origine: {info['origin_region']}"
         )
     elif any(x in sezione for x in kw_coltivazione):
         risposta = (
-            f"📖 **Coltivazione — {info['common_names']}**\n"
+            f"Coltivazione — {info['common_names']}\n"
             f"• Esposizione: {info['sun_exposure']}\n"
             f"• Bisogno idrico: {info['water_needs']}\n"
             f"• Tipo di terreno: {info['soil_type']}\n"
             f"• Temperatura minima tollerata: {info['min_temp_celsius']} °C"
         )
     elif any(x in sezione for x in kw_usi):
-        tossicita = "Sì ⚠️" if info['is_toxic'] else "No ✅"
+        tossicita = "Sì" if info['is_toxic'] else "No"
         risposta = (
-            f"📖 **Usi — {info['common_names']}**\n"
+            f"Usi — {info['common_names']}\n"
             f"• Tossicità: {tossicita}\n"
             f"• Usi Principali: {info['primary_uses']}"
         )
     else:
         # Nessuna sezione specifica o azione generica (spiega / dimmi di più / curiosità)
-        tossicita = "Sì ⚠️" if info['is_toxic'] else "No ✅"
+        tossicita = "Sì" if info['is_toxic'] else "No"
         risposta = (
-            f"📖 **Wiki — {info['common_names']}** ({info['scientific_name']})\n"
+            f"Wiki — {info['common_names']} ({info['scientific_name']})\n"
             f"Famiglia: {info['botanical_family']} | Origine: {info['origin_region']}\n"
             f"Altezza max: {info['max_height_cm']} cm | Tossicità: {tossicita}\n\n"
-            f"Puoi chiedermi dettagli su: *Nomenclatura*, *Descrizione*, *Coltivazione* o *Usi*."
+            f"Puoi chiedermi dettagli su: Nomenclatura, Descrizione, Coltivazione o Usi."
         )
 
     # ------------------------------------------------------------------
@@ -840,8 +840,7 @@ INTENT_ROUTING = {
     "AnalizzaSerra":          handle_analizza_serra,
     "AnalizzaPianta":         handle_analizza_pianta,
     "ConsigliSpecie":         handle_consigli_specie,
-    "WikiSpecie":             handle_wiki_specie,
-    # "ProblemiPianta":       handle_problemi_pianta,
+    "WikiSpecie":             handle_wiki_specie
 }
 
 # =====================================================================

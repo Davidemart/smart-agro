@@ -40,7 +40,7 @@ class DBRepository:
                 cls._pool = None
 
     def __init__(self):
-        # Assicura che il pool sia inizializzato
+        """Assicura che il pool sia inizializzato e prepara i dati wiki."""
         if self._pool is None:
             self.initialize_pool()
         self.initialize_wiki_data()

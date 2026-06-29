@@ -37,6 +37,7 @@ class BackgroundWorker:
     # ------------------------------------------------------------------
 
     def _run_loop(self):
+        """Esegue il ciclo principale."""
         logger.info(
             f"[Worker] Thread avviato. Analisi ogni {self._interval}s. "
             f"Prima esecuzione immediata..."
@@ -80,4 +81,5 @@ class BackgroundWorker:
 
     @property
     def is_alive(self) -> bool:
+        """Verifica se il worker è in esecuzione."""
         return self._thread.is_alive()

@@ -7,6 +7,7 @@ from utils.logger import logger
 
 class CameraService:
     def __init__(self):
+        """Inizializza il servizio telecamera."""
         self.camera_index = Config.CAMERA_INDEX
         self.test_images_dir = "test_images"
         
@@ -72,7 +73,9 @@ class CameraService:
             
             # --- AGGIUNTA PER IL DEBUG ---
             # Salva l'immagine catturata NELLA CARTELLA PRINCIPALE
-            debug_path = "debug_last_capture.jpg"
+            import os
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            debug_path = os.path.join(project_root, "debug_last_capture.jpg")
             cv2.imwrite(debug_path, frame)
             logger.info(f"Immagine di debug salvata come '{debug_path}'")
             # -----------------------------

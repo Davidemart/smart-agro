@@ -21,6 +21,7 @@ except ImportError:
 
 class VisionService:
     def __init__(self):
+        """Inizializza il servizio di visione per l'analisi delle immagini."""
         self.model_path = Config.KERAS_MODEL_PATH
         self.labels_path = Config.LABELS_PATH
         self.keras_model = None
@@ -278,12 +279,14 @@ class VisionService:
         # ==========================================
         # FINE CICLO: Mostra e Salva l'immagine finale
         # ==========================================
-        if len(boxes) > 0:
-            try:
-                # Salva l'immagine nella cartella del progetto
-                cv2.imwrite("debug_annotated_plants.jpg", annotated_frame)
-            except Exception as e:
-                logger.error(f"Errore durante il salvataggio dell'immagine: {e}")
+        try:
+            # Salva l'immagine nella cartella del progetto
+            import os
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            save_path = os.path.join(project_root, "debug_annotated_plants.jpg")
+            cv2.imwrite(save_path, annotated_frame)
+        except Exception as e:
+            logger.error(f"Errore durante il salvataggio dell'immagine: {e}")
 
         logger.info(f"Latenza Totale Pipeline: {int((time.time() - pipeline_start) * 1000)}ms")
         
