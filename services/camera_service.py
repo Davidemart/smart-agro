@@ -88,10 +88,6 @@ class CameraService:
 
     def _load_random_test_image(self):
         """Carica un'immagine a caso dalla cartella test_images e la restituisce."""
-        if self.cached_test_frame is not None:
-            logger.info("[TEST MODE] Utilizzo frame di test in cache.")
-            return self.cached_test_frame
-            
         self._ensure_test_images_dir()
         images = [f for f in os.listdir(self.test_images_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         
@@ -107,6 +103,5 @@ class CameraService:
         if frame is None:
             raise RuntimeError(f"Impossibile leggere l'immagine di test '{selected_image_path}' con OpenCV.")
             
-        self.cached_test_frame = frame
         return frame
 

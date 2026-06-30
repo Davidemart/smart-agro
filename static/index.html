@@ -577,7 +577,7 @@
       <div class="image-footer">
         <div class="refresh-info">
           <span>⏱</span>
-          Polling ogni <strong>3 s</strong>
+          Polling ogni <strong>5 min</strong>
         </div>
         <span class="last-update" id="last-update">In attesa…</span>
         <button id="refresh-btn" onclick="refreshNow()">
@@ -804,7 +804,7 @@
      LIVE IMAGE POLLING SCRIPT
 ====================================================================== -->
 <script>
-  const POLL_INTERVAL_MS = 3000;
+  const POLL_INTERVAL_MS = 300000;
   const IMAGE_ENDPOINT   = '/latest-image';
 
   let updateCount = 0;
@@ -835,7 +835,9 @@
     updateCount++;
     countEl.textContent = updateCount;
     lastUpdateEl.textContent = 'Aggiornato alle ' + getTimestamp();
-    imageNameEl.textContent  = 'debug_annotated_plants.jpg';
+    if (imageNameEl) {
+      imageNameEl.textContent  = 'debug_annotated_plants.jpg';
+    }
     serverStatus.textContent = 'Connesso';
     serverStatus.style.color = 'var(--accent-green)';
   }
@@ -858,11 +860,29 @@
   function refreshNow() {
     const icon = refreshIcon;
     icon.classList.add('rotating');
-    setTimeout(() => icon.classList.remove('rotating'), 700);
+    
+    const btn = document.getElementById('refresh-btn');
+    if (btn) btn.disabled = true;
 
     clearInterval(pollTimer);
-    loadImage();
-    pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+
+    fetch('/api/analyze-now', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          console.error("Errore scansione manuale:", data.error);
+        }
+        loadImage();
+      })
+      .catch(err => {
+        console.error("Errore di rete scansione:", err);
+        loadImage();
+      })
+      .finally(() => {
+        icon.classList.remove('rotating');
+        if (btn) btn.disabled = false;
+        pollTimer = setInterval(loadImage, POLL_INTERVAL_MS);
+      });
   }
 
   let dbViewActive = false;

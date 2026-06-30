@@ -40,7 +40,7 @@ if camera_service is not None and vision_service is not None:
             camera_service=camera_service,
             vision_service=vision_service,
             cache=analysis_cache,
-            interval_seconds=10
+            interval_seconds=900
         )
         background_worker.start()
         logger.info("Worker di background avviato con successo.")
@@ -141,7 +141,7 @@ def handle_analizza_serra(parameters):
         # Estrazione dell'azione (es. "quanti" vs "come sta")
         azione_raw = parameters.get("azione", "")
         azione = azione_raw[0].lower() if isinstance(azione_raw, list) and azione_raw else str(azione_raw).lower()
-        chiede_conteggio = "quant" in azione or ("conta" in azione and "controll" not in azione)
+        chiede_conteggio = "quant" in azione or ("conta" in azione and "controll" not in azione) or "qual è il numero" in azione
 
         if chiede_conteggio:
             count_specie = len(piante_specie)
@@ -259,8 +259,13 @@ def handle_analizza_pianta(parameters):
     else:
         specie_richiesta = str(specie_richiesta).lower()
 
-    # Se non c'è né il numero né la specie, chiediamo chiarimenti
-    if not num_richiesto and (not specie_richiesta or specie_richiesta == "pianta"):
+    # Pulisce prefissi generici come "pianta di ", "piantina di ", etc.
+    for prefix in ["pianta di ", "piantina di ", "piantine di ", "coltura di ", "colture di ", "pianta ", "piantina ", "piantine ", "coltura ", "colture "]:
+        if specie_richiesta.startswith(prefix):
+            specie_richiesta = specie_richiesta[len(prefix):].strip()
+
+    # Se non c'è né il numero né la specie, o se è rimasta solo una parola generica
+    if not num_richiesto and (not specie_richiesta or specie_richiesta in ["pianta", "piantina", "piantine", "coltura", "colture"]):
         return create_dialogflow_response("Di quale pianta vuoi sapere lo stato? Dimmi il suo numero o la sua specie.")
 
     # --- Lettura dalla cache (invece di catturare il frame in tempo reale) ---
@@ -488,18 +493,91 @@ def handle_consigli_specie(parameters):
 
     # 4. Ricerca della pianta di riferimento
     pianta_riferimento = None
-    if plant_id:
-        pianta_riferimento = next((p for p in plants if p["plant_id"] == plant_id), None)
     
-    if not pianta_riferimento and specie and specie not in ["pianta", "piantina", "piantine"]:
-        piante_specie = [p for p in plants if p["species"].lower() == specie]
-        if piante_specie:
-            # Scegliamo la prima occorrenza per quella specie
-            pianta_riferimento = piante_specie[0]
+    # Se la specie è specificata
+    if specie and specie not in ["pianta", "piantina", "piantine"]:
+        piante_stesso_tipo = [p for p in plants if p["species"].lower() == specie]
+        
+        if len(piante_stesso_tipo) > 1:
+            if not plant_id:
+                # Chiedi chiarimenti a quale delle N piantine ci si riferisce
+                posizioni_str = ", ".join(str(p["plant_id"]) for p in piante_stesso_tipo)
+                risposta = f"Ci sono più piante di {specie.capitalize()} (nelle posizioni: {posizioni_str}). A quale di queste ti riferisci?"
+                contesti_uscita = None
+                if session:
+                    contesti_uscita = [{
+                        "name": f"{session}/contexts/analizzapianta-followup",
+                        "lifespanCount": 5,
+                        "parameters": {
+                            "specie_vegetale": specie
+                        }
+                    }]
+                return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+            else:
+                # Cerca quella specifica per la posizione (plant_id) indicata
+                pianta_riferimento = next((p for p in piante_stesso_tipo if p["plant_id"] == plant_id), None)
+                if not pianta_riferimento:
+                    pianta_in_pos = next((p for p in plants if p["plant_id"] == plant_id), None)
+                    posizioni_str = ", ".join(str(p["plant_id"]) for p in piante_stesso_tipo)
+                    if pianta_in_pos:
+                        risposta = f"In posizione {plant_id} non c'è una pianta di {specie.capitalize()}, ma c'è una pianta di {pianta_in_pos['species'].capitalize()}. Le piante di {specie.capitalize()} sono nelle posizioni: {posizioni_str}."
+                    else:
+                        risposta = f"Non esiste una pianta in posizione {plant_id}. Le piante di {specie.capitalize()} sono nelle posizioni: {posizioni_str}."
+                    
+                    contesti_uscita = None
+                    if session:
+                        contesti_uscita = [{
+                            "name": f"{session}/contexts/analizzapianta-followup",
+                            "lifespanCount": 5,
+                            "parameters": {
+                                "specie_vegetale": specie
+                            }
+                        }]
+                    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+        elif len(piante_stesso_tipo) == 1:
+            if plant_id:
+                if piante_stesso_tipo[0]["plant_id"] == plant_id:
+                    pianta_riferimento = piante_stesso_tipo[0]
+                else:
+                    pianta_in_pos = next((p for p in plants if p["plant_id"] == plant_id), None)
+                    if pianta_in_pos:
+                        risposta = f"In posizione {plant_id} non c'è una pianta di {specie.capitalize()}, ma c'è una pianta di {pianta_in_pos['species'].capitalize()}. L'unica pianta di {specie.capitalize()} è in posizione {piante_stesso_tipo[0]['plant_id']}."
+                    else:
+                        risposta = f"Non esiste una pianta in posizione {plant_id}. L'unica pianta di {specie.capitalize()} è in posizione {piante_stesso_tipo[0]['plant_id']}."
+                    
+                    contesti_uscita = None
+                    if session:
+                        contesti_uscita = [{
+                            "name": f"{session}/contexts/analizzapianta-followup",
+                            "lifespanCount": 5,
+                            "parameters": {
+                                "specie_vegetale": specie
+                            }
+                        }]
+                    return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+            else:
+                pianta_riferimento = piante_stesso_tipo[0]
+        else:
+            # Nessuna pianta di questa specie trovata
+            risposta = f"Non ho rilevato alcuna pianta di {specie.capitalize()} nella serra."
+            contesti_uscita = None
+            if session:
+                contesti_uscita = [{
+                    "name": f"{session}/contexts/analizzapianta-followup",
+                    "lifespanCount": 0,
+                    "parameters": {}
+                }]
+            return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
-    # Se non c'è una pianta specifica ma abbiamo piante rilevate, facciamo riferimento alla prima
-    if not pianta_riferimento and plants:
-        pianta_riferimento = plants[0]
+    # Se non c'è una specie specificata (richiesta generica)
+    if not pianta_riferimento:
+        if plant_id:
+            pianta_riferimento = next((p for p in plants if p["plant_id"] == plant_id), None)
+            if not pianta_riferimento:
+                risposta = f"Non ho rilevato alcuna pianta in posizione {plant_id}."
+                return create_dialogflow_response(risposta)
+        elif plants:
+            pianta_riferimento = plants[0]
 
     # 5. Determinazione stato e consigli mirati
     if pianta_riferimento:
@@ -659,7 +737,7 @@ def handle_consigli_specie(parameters):
         prefisso += f"• Stato di salute stimato: {stato.upper()}\n"
         
     if chiave_supporto != "general":
-        prefisso += f"• Focus richiesto: {chiave_supporto.capitalize()}\n"
+        prefisso += f"• Focus richiesto: {chiave_supporto.capitalize()}•\n"
         
     risposta = f"{prefisso}\n {consiglio}"
 
@@ -772,7 +850,15 @@ def handle_wiki_specie(parameters):
     kw_coltivazione = ["coltivazione", "esposizione", "acqua", "terreno", "temperatura", "clima", "sole", "luce", "innaffiare", "freddo", "cura", "coltiva", "piantare", "mantenere"]
     kw_usi          = ["usi", "uso", "usa", "tossic", "velen", "mangia", "commestibile", "proprietà", "serve", "utilizz", "cucina", "mangiare"]
 
-    if any(x in sezione for x in kw_nomenclatura):
+    if azione in ["spiega", "spiegami", "curiosità", "curiosita", "parlami", "wiki", "dimmi di più", "dimmi di piu"]:
+        tossicita = "Sì" if info['is_toxic'] else "No"
+        risposta = (
+            f"Wiki — {info['common_names']} ({info['scientific_name']})\n"
+            f"Famiglia: {info['botanical_family']} | Origine: {info['origin_region']}\n"
+            f"Altezza max: {info['max_height_cm']} cm | Tossicità: {tossicita}\n\n"
+            f"Puoi chiedermi dettagli su: Nomenclatura, Descrizione, Coltivazione o Usi."
+        )
+    elif any(x in sezione for x in kw_nomenclatura):
         risposta = (
             f"Nomenclatura — {info['common_names']}\n"
             f"• Nome Scientifico: {info['scientific_name']}\n"
@@ -940,6 +1026,46 @@ def reset_and_analyze():
         return jsonify({'success': True, 'seedling_count': seedling_count})
     except Exception as e:
         logger.error(f"Errore durante il reset e ri-analisi: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze-now', methods=['POST'])
+def analyze_now():
+    """Forza un'analisi immediata, aggiorna la cache e salva i dati nel DB senza resettarlo."""
+    if db_repository is None or vision_service is None or camera_service is None:
+        return jsonify({'error': 'Servizi non inizializzati.'}), 500
+        
+    try:
+        # Pulisce la cache dell'immagine di test per costringere a sceglierne una nuova
+        if hasattr(camera_service, 'cached_test_frame'):
+            camera_service.cached_test_frame = None
+
+        # 1. Cattura e analizza
+        frame = camera_service.capture_frame()
+        analysis = vision_service.analyse_frame(frame)
+        plants = analysis["plants"]
+        seedling_count = analysis["seedling_count"]
+
+        # 2. Aggiorna la cache con il risultato fresco
+        analysis_cache.update(analysis)
+        logger.info("[analyze-now] Cache aggiornata con il nuovo risultato manuale.")
+        
+        # 3. Salva le piante trovate
+        if plants:
+            db_repository.save_plants_from_serra(plants)
+            
+            # 4. Salva l'osservazione per ogni pianta trovata
+            for p in plants:
+                db_repository.save_single_observation(
+                    position=p["plant_id"],
+                    health_status=p["health_status"],
+                    anomaly_pct=p["anomaly_pct"],
+                    seedling_count=seedling_count
+                )
+                
+        return jsonify({'success': True, 'seedling_count': seedling_count})
+    except Exception as e:
+        logger.error(f"Errore durante l'analisi manuale: {e}")
         return jsonify({'error': str(e)}), 500
 
 
