@@ -20,7 +20,7 @@
       "affectedContexts": [
         {
           "name": "analizzapianta-followup",
-          "lifespan": 5
+          "lifespan": 10
         }
       ],
       "parameters": [
@@ -46,7 +46,9 @@
           "dataType": "@sys.number",
           "isList": true,
           "required": false,
-          "prompts": [],
+          "prompts": [
+            "A quale pianta ti riferisci?"
+          ],
           "value": "$number",
           "outputDialogContexts": []
         },
@@ -78,6 +80,178 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "In ",
+          "userDefined": false
+        },
+        {
+          "text": "che condizioni",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " è la ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di rosmarino",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "ff4f5d0a-431c-485c-a8a8-4f1ee0e4ebd3",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "ho fame, ",
+          "userDefined": false
+        },
+        {
+          "text": "come sta",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " la pianta di ",
+          "userDefined": false
+        },
+        {
+          "text": "altro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "39fe9620-8844-42a2-be35-767fc6d41477",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " la pianta di specie ",
+          "userDefined": false
+        },
+        {
+          "text": "basilico",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "d63727eb-1e9f-4566-856e-d2ece6f387a9",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " la pianta ",
+          "userDefined": false
+        },
+        {
+          "text": "altro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "490646a8-8068-41e5-9ef6-a8e6d221e3d5",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "altro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "32a4f1d0-f03e-4615-a021-7e1218f8cc76",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Come sta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "altro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "bf6fae72-5504-4e3e-8714-33e31a3f97c5",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [
@@ -266,17 +440,7 @@
           "meta": "@azione"
         },
         {
-          "text": " la ",
-          "userDefined": false
-        },
-        {
-          "text": "pianta",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " ",
+          "text": " la pianta ",
           "userDefined": false
         },
         {
@@ -380,17 +544,7 @@
           "meta": "@azione"
         },
         {
-          "text": " la ",
-          "userDefined": false
-        },
-        {
-          "text": "pianta",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " ",
+          "text": " la pianta ",
           "userDefined": false
         },
         {

@@ -9,7 +9,9 @@
       "value": "alloro",
       "synonyms": [
         "alloro",
-        "pianta d'alloro"
+        "pianta d'alloro",
+        "pianta di alloro",
+        "piantina di basilico"
       ]
     },
     {
@@ -18,20 +20,30 @@
         "pomodoro",
         "pomodori",
         "pianta di pomodoro",
-        "piante di pomodoro"
+        "piante di pomodoro",
+        "piantina di pomodoro"
       ]
     },
     {
       "value": "basilico",
       "synonyms": [
-        "basilico"
+        "basilico",
+        "pianta di basilico",
+        "piantina di basilico"
       ]
     },
     {
       "value": "rosmarino",
       "synonyms": [
         "rosmarino",
-        "pianta di rosmarino"
+        "pianta di rosmarino",
+        "piantina di rosmarino"
+      ]
+    },
+    {
+      "value": "altro",
+      "synonyms": [
+        "altro"
       ]
     }
   ],

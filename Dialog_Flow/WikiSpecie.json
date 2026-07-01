@@ -5,8 +5,12 @@
   "condition": "",
   "conditionalFollowupEvents": [],
   "conditionalResponses": [],
-  "context": [],
-  "contexts": [],
+  "context": [
+    "analizzapianta-followup"
+  ],
+  "contexts": [
+    "analizzapianta-followup"
+  ],
   "endInteraction": false,
   "events": [],
   "fallbackIntent": false,
@@ -21,6 +25,10 @@
         {
           "name": "wikispecie-followup",
           "lifespan": 10
+        },
+        {
+          "name": "analizzapianta-followup",
+          "lifespan": 5
         }
       ],
       "parameters": [
@@ -51,6 +59,19 @@
           "prompts": [],
           "value": "$azione",
           "outputDialogContexts": []
+        },
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "specie_vegetale",
+          "dataType": "@specie_vegetale",
+          "isList": false,
+          "required": false,
+          "prompts": [],
+          "value": "$specie_vegetale",
+          "outputDialogContexts": []
         }
       ],
       "defaultResponsePlatforms": {},
@@ -69,6 +90,108 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Nomenclatura",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " della ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di rosmarino",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "66bddb95-170f-4624-af7d-908a825a1316",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Usi",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "abd09bdb-f8eb-4c1d-b944-a8ab77bcc02e",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Coltivazione",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "29f1a534-d224-48f4-9e6e-f17477202968",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Descrizione",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "1b13b73d-2bb7-4a0d-8f59-f685a549630d",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Nomenclatura",
+          "userDefined": true,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "a9c63e9b-d4e2-4297-b491-cc486c28a3a2",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Quanto diventa ",
+          "userDefined": false
+        },
+        {
+          "text": "alto",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "faa8de0b-fe10-4401-a400-af25c99b67af",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [
@@ -175,6 +298,150 @@
       "isTemplate": false,
       "data": [
         {
+          "text": "A cosa serve",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " l'",
+          "userDefined": false
+        },
+        {
+          "text": "alloro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "d2fa22ac-69f0-42b2-8732-52415178eebe",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dammi delle ",
+          "userDefined": false
+        },
+        {
+          "text": "curiosità",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " sul ",
+          "userDefined": false
+        },
+        {
+          "text": "basilico",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "779bcb4f-1c26-41fc-bfbc-19a9fb012095",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Qual è l'",
+          "userDefined": false
+        },
+        {
+          "text": "origine",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " della ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di pomodoro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "731d4334-6fc7-47da-9a44-d367888580b9",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dove ",
+          "userDefined": false
+        },
+        {
+          "text": "cresce",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        },
+        {
+          "text": " il ",
+          "userDefined": false
+        },
+        {
+          "text": "basilico",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "4a256b5c-6565-4989-b744-ffce1f15cc99",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Dimmi di più",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " sulla pianta di ",
+          "userDefined": false
+        },
+        {
+          "text": "alloro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        }
+      ],
+      "count": 0,
+      "id": "eacab662-1bad-44d3-afa2-1906f2fb1422",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
           "text": "Qual è l'",
           "userDefined": false
         },
@@ -271,6 +538,34 @@
       ],
       "count": 0,
       "id": "c3873c64-b8ef-45d3-ac5e-7c6c44ba9907",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "La ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di pomodoro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " è ",
+          "userDefined": false
+        },
+        {
+          "text": "velenosa?",
+          "userDefined": false,
+          "alias": "sezione_richiesta",
+          "meta": "@sezione_richiesta"
+        }
+      ],
+      "count": 0,
+      "id": "a9efa9dd-0aa5-458f-97e4-b7ada1220b19",
       "updated": null
     },
     {

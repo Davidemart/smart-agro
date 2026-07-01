@@ -6,7 +6,7 @@
   "automatedExpansion": true,
   "entries": [
     {
-      "value": "nome scientifico",
+      "value": "nome",
       "synonyms": [
         "nome scientifico",
         "numenclatura",
@@ -38,11 +38,7 @@
         "terreno",
         "freddo",
         "clima",
-        "temperatura",
-        "sole",
-        "luce",
-        "acqua",
-        "innaffiare"
+        "temperatura"
       ]
     },
     {
@@ -54,7 +50,8 @@
         "velenoso",
         "tossico",
         "si mangia",
-        "commestibile"
+        "commestibile",
+        "usa"
       ]
     }
   ],

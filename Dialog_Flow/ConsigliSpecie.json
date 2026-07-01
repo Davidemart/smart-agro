@@ -5,8 +5,12 @@
   "condition": "",
   "conditionalFollowupEvents": [],
   "conditionalResponses": [],
-  "context": [],
-  "contexts": [],
+  "context": [
+    "analizzapianta-followup"
+  ],
+  "contexts": [
+    "analizzapianta-followup"
+  ],
   "endInteraction": false,
   "events": [],
   "fallbackIntent": false,
@@ -21,6 +25,10 @@
         {
           "name": "consiglispecie-followup",
           "lifespan": 10
+        },
+        {
+          "name": "analizzapianta-followup",
+          "lifespan": 5
         }
       ],
       "parameters": [
@@ -38,6 +46,32 @@
           ],
           "value": "$supporto",
           "outputDialogContexts": []
+        },
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "specie_vegetale",
+          "dataType": "@specie_vegetale",
+          "isList": false,
+          "required": false,
+          "prompts": [],
+          "value": "$specie_vegetale",
+          "outputDialogContexts": []
+        },
+        {
+          "noInputPromptMessages": [],
+          "noMatchPromptMessages": [],
+          "promptMessages": [],
+          "defaultValue": "",
+          "name": "number",
+          "dataType": "@sys.number",
+          "isList": false,
+          "required": false,
+          "prompts": [],
+          "value": "$number",
+          "outputDialogContexts": []
         }
       ],
       "defaultResponsePlatforms": {},
@@ -54,6 +88,250 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "L'",
+          "userDefined": false
+        },
+        {
+          "text": "alloro",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "3",
+          "userDefined": false,
+          "alias": "number",
+          "meta": "@sys.number"
+        },
+        {
+          "text": " riceve abbastanza ",
+          "userDefined": false
+        },
+        {
+          "text": "luce",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "e550b4da-da19-4232-b0a9-20b4bb03306a",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Devo ",
+          "userDefined": false
+        },
+        {
+          "text": "concimare",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " la ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di pomodoro",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "3",
+          "userDefined": false,
+          "alias": "number",
+          "meta": "@sys.number"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "014f60eb-5690-45e1-bc20-911fe374b456",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Devo spostare al ",
+          "userDefined": false
+        },
+        {
+          "text": "sole",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " il ",
+          "userDefined": false
+        },
+        {
+          "text": "basilico",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "101e5d8f-d0a1-4f89-83e9-a9cfb99226fd",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Devo ",
+          "userDefined": false
+        },
+        {
+          "text": "annaffiare",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": " di più la ",
+          "userDefined": false
+        },
+        {
+          "text": "pianta di rosmarino",
+          "userDefined": false,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "2",
+          "userDefined": false,
+          "alias": "number",
+          "meta": "@sys.number"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "83dd1435-8d36-4f02-8c56-39fd250e688c",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Il ",
+          "userDefined": false
+        },
+        {
+          "text": "rosmarino",
+          "userDefined": true,
+          "alias": "specie_vegetale",
+          "meta": "@specie_vegetale"
+        },
+        {
+          "text": " ",
+          "userDefined": false
+        },
+        {
+          "text": "1",
+          "userDefined": true,
+          "alias": "number",
+          "meta": "@sys.number"
+        },
+        {
+          "text": " ha bisogno di ",
+          "userDefined": false
+        },
+        {
+          "text": "acqua",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "946238f5-15d7-432b-9d45-66a6987e95d4",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Devo spostarla al ",
+          "userDefined": false
+        },
+        {
+          "text": "sole",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "ef3c1cc2-aae1-49a3-b7df-681ed37e6fb2",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Devo spostarla alla ",
+          "userDefined": false
+        },
+        {
+          "text": "luce",
+          "userDefined": false,
+          "alias": "supporto",
+          "meta": "@supporto"
+        },
+        {
+          "text": "?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "bdd73a32-a994-48ba-9a13-1a48ee71857f",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [

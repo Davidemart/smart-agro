@@ -15,6 +15,8 @@ vision_service = None
 camera_service = None
 db_repository = None
 background_worker = None
+session_memory = {}  # Memoria locale per tracciare specie e posizione per ciascuna sessione
+
 
 logger.info("Inizializzazione dei servizi durante il bootstrap del server...")
 try:
@@ -123,6 +125,12 @@ def handle_analizza_serra(parameters):
     plants = analysis["plants"]
     
     if seedling_count == 0 or not plants:
+        if session:
+            session_memory[session] = {
+                "specie_vegetale": "",
+                "number": ""
+            }
+            logger.info(f"[Memory Reset - Serra Vuota] Reimpostata session_memory per sessione: {session}")
         return create_dialogflow_response(
             "Ho controllato la serra, ma non ho rilevato alcuna piantina. Prova a sistemare l'inquadratura."
         )
@@ -155,6 +163,11 @@ def handle_analizza_serra(parameters):
             # Reset del contesto se non trovata, altrimenti salva/aggiorna
             contesti_uscita = None
             if session:
+                session_memory[session] = {
+                    "specie_vegetale": specie_richiesta if count_specie > 0 else "",
+                    "number": piante_specie[0]["plant_id"] if count_specie > 0 else ""
+                }
+                logger.info(f"[Memory Save - Serra Count] Salvato in sessione: {session_memory[session]}")
                 lifespan = 5 if count_specie > 0 else 0
                 contesti_uscita = [{
                     "name": f"{session}/contexts/analizzapianta-followup",
@@ -207,6 +220,11 @@ def handle_analizza_serra(parameters):
             # Aggiunta contesto di followup per eventuali richieste di consigli successive
             contesti_uscita = None
             if session:
+                session_memory[session] = {
+                    "specie_vegetale": specie_richiesta,
+                    "number": piante_specie[0]["plant_id"]  # Primo ID come riferimento di default
+                }
+                logger.info(f"[Memory Save - Serra Health] Salvato in sessione: {session_memory[session]}")
                 contesti_uscita = [{
                     "name": f"{session}/contexts/analizzapianta-followup",
                     "lifespanCount": 5,
@@ -231,6 +249,11 @@ def handle_analizza_serra(parameters):
     # Reset del contesto (richiesta generica: nessuna specie specifica in memoria)
     contesti_uscita = None
     if session:
+        session_memory[session] = {
+            "specie_vegetale": "",
+            "number": ""
+        }
+        logger.info(f"[Memory Reset - Serra Generica] Reimpostata session_memory per sessione: {session}")
         contesti_uscita = [{
             "name": f"{session}/contexts/analizzapianta-followup",
             "lifespanCount": 0,
@@ -254,8 +277,9 @@ def handle_analizza_pianta(parameters):
     specie_richiesta = parameters.get("specie_vegetale", "")
 
     # Normalizzazione specie richiesta
-    if isinstance(specie_richiesta, list) and specie_richiesta:
-        specie_richiesta = str(specie_richiesta[0]).lower()
+    # Gestisce tutte le forme restituite da Dialogflow: lista non vuota, lista vuota, stringa
+    if isinstance(specie_richiesta, list):
+        specie_richiesta = str(specie_richiesta[0]).lower() if specie_richiesta else ""
     else:
         specie_richiesta = str(specie_richiesta).lower()
 
@@ -284,7 +308,7 @@ def handle_analizza_pianta(parameters):
     # 3. Logica di ricerca flessibile (Risolve il bug!)
     pianta_trovata = None
     
-    if num_richiesto:
+    if num_richiesto is not None and num_richiesto != "" and num_richiesto != []:
         # Se l'utente ha detto il numero (es. "Pianta 1"), cerchiamo per ID posizione
         num_richiesto = int(num_richiesto[0]) if isinstance(num_richiesto, list) else int(num_richiesto)
         pianta_posizione = next((p for p in plants if p["plant_id"] == num_richiesto), None)
@@ -367,11 +391,17 @@ def handle_analizza_pianta(parameters):
             
             contesti_uscita = None
             if session:
+                session_memory[session] = {
+                    "specie_vegetale": specie_richiesta.lower(),
+                    "number": piante_specie[0]["plant_id"]
+                }
+                logger.info(f"[Memory Save] Salvato in sessione: {session_memory[session]}")
                 contesti_uscita = [{
                     "name": f"{session}/contexts/analizzapianta-followup",
                     "lifespanCount": 5,
                     "parameters": {
-                        "specie_vegetale": specie_richiesta
+                        "specie_vegetale": specie_richiesta,
+                        "number": piante_specie[0]["plant_id"]  # Salva la prima pianta come riferimento
                     }
                 }]
 
@@ -400,6 +430,11 @@ def handle_analizza_pianta(parameters):
         # Salviamo la specie e il numero nel contesto di Dialogflow per le domande successive
         contesti_uscita = None
         if session:
+            session_memory[session] = {
+                "specie_vegetale": pianta_trovata['species'].lower(),
+                "number": num_richiesto
+            }
+            logger.info(f"[Memory Save] Salvato in sessione: {session_memory[session]}")
             contesti_uscita = [{
                 "name": f"{session}/contexts/analizzapianta-followup",
                 "lifespanCount": 5,
@@ -412,7 +447,7 @@ def handle_analizza_pianta(parameters):
         return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
     else:
         # Messaggio di cortesia se la pianta richiesta non è presente nell'inquadratura
-        if num_richiesto:
+        if num_richiesto is not None and num_richiesto != "" and num_richiesto != []:
             risposta = f"Hai chiesto della pianta numero {num_richiesto}, ma attualmente nell'inquadratura vedo solo {seedling_count} piante."
         else:
             risposta = f"Ho scansionato la serra, ma attualmente non vedo alcuna pianta di '{specie_richiesta.capitalize()}' nell'inquadratura."
@@ -430,9 +465,18 @@ def handle_analizza_pianta(parameters):
 
 def handle_saluto(parameters):
     """Gestisce un intento di saluto semplice."""
+    req_data = request.get_json(silent=True)
+    session = req_data.get("session") if req_data else None
+    if session and session in session_memory:
+        session_memory[session] = {
+            "specie_vegetale": "",
+            "number": ""
+        }
+        logger.info(f"[Memory Reset] Reimpostata session_memory per saluto in sessione: {session}")
     return create_dialogflow_response(
         "Ciao! Sono l'assistente Smart-Agri. Posso avviare l'analisi delle tue piante in tempo reale. Dimmi pure quando procedere!"
     )
+
 
 
 def handle_consigli_specie(parameters):
@@ -445,32 +489,89 @@ def handle_consigli_specie(parameters):
     
     # 1. Recuperiamo l'intero payload inviato da Dialogflow
     req_data = request.get_json(silent=True)
-    
+    session = req_data.get("session") if req_data else None
+
     specie_raw = parameters.get("specie_vegetale", "")
     num_raw = parameters.get("number", "")
     supporto_raw = parameters.get("supporto", "")
 
-    # --- Recupero specie e numero da uno dei contesti di follow-up validi ---
-    CONTESTI_CONSIGLIO = [
-        "analizzapianta-followup",
-        "consiglispecie-followup",
-        "wikispecie-followup",
-    ]
-    contesti = req_data.get("queryResult", {}).get("outputContexts", []) if req_data else []
-    for ctx in contesti:
-        ctx_name = ctx.get("name", "").lower()
-        if any(c in ctx_name for c in CONTESTI_CONSIGLIO):
-            parametri_contesto = ctx.get("parameters", {})
-            if not specie_raw:
-                specie_raw = parametri_contesto.get("specie_vegetale", "")
-                if specie_raw:
-                    logger.info(f"[ConsigliSpecie] Specie dal contesto '{ctx_name}': {specie_raw}")
-            if not num_raw:
-                num_raw = parametri_contesto.get("number", "")
-                if num_raw:
-                    logger.info(f"[ConsigliSpecie] Numero pianta dal contesto '{ctx_name}': {num_raw}")
-            if specie_raw and num_raw:
+    # Salva i valori specificati DIRETTAMENTE nella domanda corrente (prima di qualsiasi fallback)
+    specie_diretta = specie_raw
+    num_diretto = num_raw
+
+    # Determina se l'utente ha specificato direttamente parametri nella domanda corrente
+    specie_diretta_val = specie_diretta[0] if isinstance(specie_diretta, list) and specie_diretta else specie_diretta
+    num_diretto_val = num_diretto[0] if isinstance(num_diretto, list) and num_diretto else num_diretto
+    
+    has_posizione_diretta = num_diretto_val is not None and num_diretto_val != ""
+    has_specie_diretta = specie_diretta_val is not None and specie_diretta_val != "" and specie_diretta_val != [] and specie_diretta_val not in ("pianta", "piantina", "piantine")
+    
+    # Se ha specificato una posizione ma NON la specie, evitiamo il fallback per la specie.
+    # Cerca direttamente la pianta in quella posizione.
+    evita_fallback_specie = has_posizione_diretta and not has_specie_diretta
+
+    # --- FALLBACK 1: Memoria interna di sessione (session_memory) ---
+    memoria_sessione = session_memory.get(session, {}) if session else {}
+    
+    if not evita_fallback_specie and not specie_raw and "specie_vegetale" in memoria_sessione:
+        specie_raw = memoria_sessione["specie_vegetale"]
+        logger.info(f"[ConsigliSpecie] Recuperata specie da session_memory: '{specie_raw}'")
+        
+    if (num_raw is None or num_raw == "" or num_raw == []) and "number" in memoria_sessione:
+        num_raw = memoria_sessione["number"]
+        logger.info(f"[ConsigliSpecie] Recuperato numero pianta da session_memory: '{num_raw}'")
+
+    # --- FALLBACK 2: Contesti di follow-up validi (se ancora vuoti) ---
+    ctx_specie_salvata = ""
+    if not specie_raw or (num_raw is None or num_raw == "" or num_raw == []):
+        CONTESTI_PRIORITARI = [
+            "analizzapianta-followup",
+            "consiglispecie-followup",
+            "wikispecie-followup",
+        ]
+        contesti = req_data.get("queryResult", {}).get("outputContexts", []) if req_data else []
+        
+        contesto_trovato = None
+        for nome_target in CONTESTI_PRIORITARI:
+            for ctx in contesti:
+                ctx_name = ctx.get("name", "").lower()
+                if f"/contexts/{nome_target}" in ctx_name:
+                    contesto_trovato = ctx
+                    break
+            if contesto_trovato:
                 break
+
+        if contesto_trovato:
+            parametri_contesto = contesto_trovato.get("parameters", {})
+            ctx_specie_salvata = parametri_contesto.get("specie_vegetale", "")
+            if isinstance(ctx_specie_salvata, list):
+                ctx_specie_salvata = ctx_specie_salvata[0] if ctx_specie_salvata else ""
+            ctx_specie_salvata = str(ctx_specie_salvata).lower().strip()
+            
+            if not evita_fallback_specie and not specie_raw:
+                specie_raw = ctx_specie_salvata
+                logger.info(f"[ConsigliSpecie] Specie dal contesto: '{specie_raw}'")
+            if num_raw is None or num_raw == "" or num_raw == []:
+                num_raw = parametri_contesto.get("number", "")
+                if isinstance(num_raw, list):
+                    num_raw = num_raw[0] if num_raw else ""
+                logger.info(f"[ConsigliSpecie] Numero pianta dal contesto: '{num_raw}'")
+    else:
+        # Se abbiamo preso le info da session_memory, teniamo comunque traccia per il check di discrepanza
+        ctx_specie_salvata = memoria_sessione.get("specie_vegetale", "")
+
+
+
+
+
+    # Se l'utente ha specificato una specie DIVERSA da quella salvata nel contesto,
+    # la posizione ereditata appartiene alla vecchia specie e va scartata.
+    if specie_diretta and ctx_specie_salvata:
+        specie_dir_norm = (specie_diretta[0] if isinstance(specie_diretta, list) and specie_diretta else str(specie_diretta)).lower().strip()
+        ctx_sp_norm = (ctx_specie_salvata[0] if isinstance(ctx_specie_salvata, list) and ctx_specie_salvata else str(ctx_specie_salvata)).lower().strip()
+        if specie_dir_norm and ctx_sp_norm and specie_dir_norm != ctx_sp_norm:
+            num_raw = num_diretto  # Usa solo la posizione specificata direttamente
+            logger.info(f"[ConsigliSpecie] Cambio specie rilevato ('{ctx_sp_norm}' → '{specie_dir_norm}'): posizione ereditata dal contesto scartata.")
 
     # 2. Normalizzazione parametri
     specie = specie_raw[0].lower() if isinstance(specie_raw, list) and specie_raw else str(specie_raw).lower()
@@ -505,14 +606,34 @@ def handle_consigli_specie(parameters):
                 risposta = f"Ci sono più piante di {specie.capitalize()} (nelle posizioni: {posizioni_str}). A quale di queste ti riferisci?"
                 contesti_uscita = None
                 if session:
-                    contesti_uscita = [{
-                        "name": f"{session}/contexts/analizzapianta-followup",
-                        "lifespanCount": 5,
-                        "parameters": {
-                            "specie_vegetale": specie
+                    # SALVA LA SPECIE NELLA MEMORIA DI SESSIONE PER IL PROSSIMO TURNO!
+                    session_memory[session] = {
+                        "specie_vegetale": specie,
+                        "number": ""
+                    }
+                    logger.info(f"[Memory Save - Clarification] Salvata specie '{specie}' in attesa del numero.")
+                    
+                    contesti_uscita = [
+                        {
+                            "name": f"{session}/contexts/analizzapianta-followup",
+                            "lifespanCount": 5,
+                            "parameters": {
+                                "specie_vegetale": specie
+                            }
+                        },
+                        {
+                            # Mantiene supporto nel contesto così il slot-filling
+                            # lo trova già compilato quando l'utente risponde con il numero
+                            "name": f"{session}/contexts/consiglispecie-followup",
+                            "lifespanCount": 5,
+                            "parameters": {
+                                "supporto": supporto,
+                                "specie_vegetale": specie
+                            }
                         }
-                    }]
+                    ]
                 return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
+
             else:
                 # Cerca quella specifica per la posizione (plant_id) indicata
                 pianta_riferimento = next((p for p in piante_stesso_tipo if p["plant_id"] == plant_id), None)
@@ -743,9 +864,16 @@ def handle_consigli_specie(parameters):
 
     # Aggiornamento del contesto per i follow-up successivi
     specie_da_salvare = specie_reale if (specie_reale and specie_reale != "altro") else ""
-    session = req_data.get("session") if req_data else None
+    # (session già estratta all'inizio della funzione)
     contesti_uscita = None
     if session:
+        # Aggiorna la memoria di sessione interna con l'ultima pianta consigliata
+        session_memory[session] = {
+            "specie_vegetale": specie_da_salvare,
+            "number": id_pianta if id_pianta else ""
+        }
+        logger.info(f"[Memory Save - Consigli] Salvato in sessione: {session_memory[session]}")
+        
         contesti_uscita = [{
             "name": f"{session}/contexts/analizzapianta-followup",
             "lifespanCount": 5,
@@ -754,6 +882,7 @@ def handle_consigli_specie(parameters):
                 "number": id_pianta if id_pianta else ""
             }
         }]
+
 
     return create_dialogflow_response(risposta, output_contexts=contesti_uscita)
 
@@ -780,33 +909,61 @@ def handle_wiki_specie(parameters):
     req_data = request.get_json(silent=True)
     if not req_data:
         return create_dialogflow_response("Errore interno: payload mancante.")
+    session = req_data.get("session", "")
 
     # ------------------------------------------------------------------
-    # 1. Parametri diretti (sezione richiesta e azione)
+    # 1. Parametri diretti (sezione richiesta, azione e specie)
     # ------------------------------------------------------------------
     sezione_raw = parameters.get("sezione_richiesta", "")
     azione_raw  = parameters.get("azione", "")
+    specie_raw_diretta = parameters.get("specie_vegetale", "")
 
     # Normalizzazione: Dialogflow può restituire lista o stringa
     sezione = (sezione_raw[0] if isinstance(sezione_raw, list) and sezione_raw else str(sezione_raw)).lower().strip()
     azione  = (azione_raw[0]  if isinstance(azione_raw,  list) and azione_raw  else str(azione_raw)).lower().strip()
+    # Specie specificata direttamente dall'utente in questa domanda (es. "dammi info sul basilico")
+    specie_diretta = (specie_raw_diretta[0] if isinstance(specie_raw_diretta, list) and specie_raw_diretta else str(specie_raw_diretta)).lower().strip()
 
-    logger.info(f"[WikiSpecie] sezione='{sezione}', azione='{azione}'")
+    logger.info(f"[WikiSpecie] sezione='{sezione}', azione='{azione}', specie_diretta='{specie_diretta}'")
 
     # ------------------------------------------------------------------
-    # 2. Recupero della specie dai contesti di input
-    #    (nell'ordine di priorità: wikispecie-followup, analizzapianta-followup,
-    #     analizzaserra-followup, consiglispecie-followup)
+    # 2. Recupero della specie (Priorità: Diretta -> queryText -> session_memory -> Contesto)
     # ------------------------------------------------------------------
+    specie = ""
+    
+    # Priorità 1: Parametro diretto
+    if specie_diretta and specie_diretta not in ("pianta", "piantina", "piantine"):
+        specie = specie_diretta
+        logger.info(f"[WikiSpecie] Specie impostata da parametro diretto: '{specie}'")
+
+    # Priorità 2: Scansione del queryText (per match testuali diretti)
+    if not specie:
+        SPECIE_CONOSCIUTE = ["pomodoro", "basilico", "alloro", "rosmarino"]
+        query_text = req_data.get("queryResult", {}).get("queryText", "").lower()
+        for sp in SPECIE_CONOSCIUTE:
+            if sp in query_text:
+                specie = sp
+                logger.info(f"[WikiSpecie] Specie estratta da queryText: '{specie}'")
+                break
+
+    # Priorità 3: Memoria interna di sessione
+    if not specie:
+        memoria_sessione = session_memory.get(session, {}) if session else {}
+        if "specie_vegetale" in memoria_sessione and memoria_sessione["specie_vegetale"]:
+            specie = memoria_sessione["specie_vegetale"]
+            logger.info(f"[WikiSpecie] Specie recuperata da session_memory: '{specie}'")
+
+    # Priorità 4: Contesti di input
+    ctx_specie_salvata = ""
     CONTESTI_VALIDI = [
         "wikispecie-followup",
         "analizzapianta-followup",
         "analizzaserra-followup",
         "consiglispecie-followup",
     ]
-
-    specie = ""
     contesti_input = req_data.get("queryResult", {}).get("outputContexts", [])
+    
+    # Cerchiamo comunque la specie salvata nel contesto per confrontarla in caso di cambio
     for ctx in contesti_input:
         ctx_name = ctx.get("name", "").lower()
         if any(c in ctx_name for c in CONTESTI_VALIDI):
@@ -816,8 +973,10 @@ def handle_wiki_specie(parameters):
                 valore = valore[0] if valore else ""
             valore = str(valore).lower().strip()
             if valore and valore not in ("pianta", "piantina", ""):
-                specie = valore
-                logger.info(f"[WikiSpecie] Specie recuperata dal contesto '{ctx_name}': '{specie}'")
+                ctx_specie_salvata = valore
+                if not specie:
+                    specie = valore
+                    logger.info(f"[WikiSpecie] Specie recuperata dal contesto '{ctx_name}': '{specie}'")
                 break
 
     if not specie:
@@ -901,9 +1060,15 @@ def handle_wiki_specie(parameters):
     #    - wikispecie-followup  (lifespan 10): segue il JSON originale
     #    - analizzapianta-followup (lifespan 5): interoperabilità con altri intenti
     # ------------------------------------------------------------------
-    session = req_data.get("session", "")
     contesti_uscita = None
     if session:
+        # Aggiorna la memoria di sessione interna con l'ultima specie della wiki consultata
+        session_memory[session] = {
+            "specie_vegetale": specie,
+            "number": ""
+        }
+        logger.info(f"[Memory Save - Wiki] Salvato in sessione: {session_memory[session]}")
+        
         contesti_uscita = [
             {
                 "name": f"{session}/contexts/wikispecie-followup",

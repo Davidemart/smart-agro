@@ -17,7 +17,12 @@
   "responses": [
     {
       "action": "",
-      "affectedContexts": [],
+      "affectedContexts": [
+        {
+          "name": "analizzaserra-followup",
+          "lifespan": 10
+        }
+      ],
       "parameters": [
         {
           "noInputPromptMessages": [],
@@ -57,6 +62,42 @@
   "rootParentId": null,
   "templates": [],
   "userSays": [
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Qual è il numero",
+          "userDefined": true,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " di piante?",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "fff07759-43cf-49ee-9752-26ebe2cfd69f",
+      "updated": null
+    },
+    {
+      "isTemplate": false,
+      "data": [
+        {
+          "text": "Conta",
+          "userDefined": false,
+          "alias": "azione",
+          "meta": "@azione"
+        },
+        {
+          "text": " le piante",
+          "userDefined": false
+        }
+      ],
+      "count": 0,
+      "id": "18d66e0c-039c-4fe6-b74b-acc756d2c66a",
+      "updated": null
+    },
     {
       "isTemplate": false,
       "data": [
@@ -123,17 +164,7 @@
           "meta": "@azione"
         },
         {
-          "text": " le ",
-          "userDefined": false
-        },
-        {
-          "text": "piantine",
-          "userDefined": false,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
-        },
-        {
-          "text": " della serra",
+          "text": " le piantine della serra",
           "userDefined": false
         }
       ],
@@ -289,14 +320,8 @@
           "meta": "@azione"
         },
         {
-          "text": " tutte le ",
+          "text": " tutte le piante",
           "userDefined": false
-        },
-        {
-          "text": "piante",
-          "userDefined": true,
-          "alias": "specie_vegetale",
-          "meta": "@specie_vegetale"
         }
       ],
       "count": 0,
