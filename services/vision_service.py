@@ -168,7 +168,7 @@ class VisionService:
 
         self._check_timeout(pipeline_start, "Object Detection YOLO")
 
-       # ==========================================
+        # ==========================================
         # FASE 2, 3 e 4: Cropping, Keras e OpenCV per singola pianta
         # ==========================================
         
@@ -197,7 +197,7 @@ class VisionService:
             
             plant_data = {
                 "plant_id": idx + 1,
-                "species": "Specie Non Identificata",
+                "species": "Altro",
                 "confidence": 0.0,
                 "anomaly_pct": 0.0,
                 "health_status": "Sano"
@@ -236,7 +236,7 @@ class VisionService:
             # --- Segmentazione Anomalie (OpenCV) sul Crop ---
             try:
                 hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-                lower_yellow = np.array([15, 40, 40], dtype=np.uint8)
+                lower_yellow = np.array([5, 10, 10], dtype=np.uint8)
                 upper_yellow = np.array([30, 255, 255], dtype=np.uint8)
                 mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
                 
