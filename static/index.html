@@ -429,6 +429,15 @@
       border-radius: var(--radius-sm);
       padding: 7px 12px;
       font-style: italic;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .example-query:hover {
+      background: rgba(29,233,182,0.15);
+      border-color: rgba(29,233,182,0.4);
+      transform: translateX(3px);
     }
 
     /* =====================================================================
@@ -763,10 +772,10 @@
           Usa il widget in basso a destra per analizzare le tue piante con il linguaggio naturale.
         </p>
         <div class="example-queries">
-          <div class="example-query">"Analizza la pianta di pomodoro"</div>
-          <div class="example-query">"Come sta il basilico?"</div>
-          <div class="example-query">"Dammi consigli sull'acqua"</div>
-          <div class="example-query">"Analizza tutta la serra"</div>
+          <div class="example-query">"Analizza la pianta di rosmarino"</div>
+          <div class="example-query">"Devo annaffiare di più la pianta di rosmarino 2?"</div>
+          <div class="example-query">"Coltivazione della pianta di basilico"</div>
+          <div class="example-query">"Quanti rosmarini ci sono?"</div>
         </div>
       </div>
 
@@ -1137,6 +1146,109 @@
     }
     window.lastInputWasVoice = false;
   });
+
+  // Estrazione casuale di 4 frasi di training all'avvio del sito
+  (function() {
+    const trainingPhrases = [
+      "In che condizioni è la pianta di rosmarino?",
+      "Come sta la pianta di specie basilico?",
+      "Come sta il rosmarino?",
+      "Come stanno i pomodori?",
+      "Come sta il basilico?",
+      "Come sta l'alloro?",
+      "Come sta l'alloro 2?",
+      "Come sta la pianta 3?",
+      "Come sta il basilico 1?",
+      "Come stanno i pomodori 1?",
+      "Come sta la pianta 2?",
+      "Conta le piante",
+      "Quanti rosmarini ci sono?",
+      "Fai una verifica delle piante d'alloro",
+      "Conta le piantine della serra",
+      "Vorrei sapere come sta il rosmarino?",
+      "Quante piante di pomodoro ci sono?",
+      "Quanti pomodori ci sono?",
+      "Fai una verifica generale",
+      "Come stanno le colture?",
+      "Controlla tutte le piante",
+      "Analizza la serra",
+      "L'alloro 3 riceve abbastanza luce?",
+      "Devo concimare la pianta di pomodoro 3?",
+      "Devo spostare al sole il basilico?",
+      "Devo annaffiare di più la pianta di rosmarino 2?",
+      "Il rosmarino 1 ha bisogno di acqua?",
+      "Devo spostarla al sole?",
+      "Devo spostarla alla luce?",
+      "Ha bisogno di più acqua?",
+      "Devo annaffiare di più?",
+      "Come faccio ad evitare l'ingiallimento?",
+      "Ogni quanto va programmata l'irrigazione?",
+      "Come posso proteggere questa coltura?",
+      "La pianta riceve abbastanza luce?",
+      "Ha bisogno di concimazione?",
+      "La devo concimare?",
+      "La pianta ha bisogno di più acqua",
+      "La pianta ha bisogno di più luce?",
+      "Meglio piantarla o lasciarla nel vaso?",
+      "Ogni quanto devo annaffiare questa pianta?",
+      "Nomenclatura della pianta di rosmarino",
+      "Coltivazione della pianta di basilico",
+      "Descrizione della pianta di alloro",
+      "Quanto diventa alto il pomodoro?",
+      "Parlami della pianta di rosmarino",
+      "Come si coltiva il basilico?",
+      "Quanto cresce la pianta in genere?",
+      "A quale famiglia appartiene l'alloro?",
+      "Di che famiglia è la pianta di pomodoro?",
+      "A cosa serve l'alloro?",
+      "Dammi delle curiosità sul basilico",
+      "Qual è l'origine della pianta di pomodoro?",
+      "Dove cresce il basilico?",
+      "Dimmi di più sulla pianta di alloro",
+      "Dimmi la wiki del rosmarino",
+      "Dammi delle curiosità sulla pianta",
+      "La pianta di pomodoro è velenosa?",
+      "Qual è il nome scientifico del rosmarino?"
+    ];
+
+    const container = document.querySelector('.example-queries');
+    if (container) {
+      // Shuffling mediante algoritmo Fisher-Yates per selezione casuale pura
+      const shuffled = [...trainingPhrases].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 4);
+
+      container.innerHTML = '';
+      selected.forEach(phrase => {
+        const div = document.createElement('div');
+        div.className = 'example-query';
+        div.textContent = `"${phrase}"`;
+        
+        div.addEventListener('click', () => {
+          const dfMessenger = document.querySelector('df-messenger');
+          if (dfMessenger) {
+            dfMessenger.setAttribute('expand', 'true');
+            setTimeout(() => {
+              const dfChat = dfMessenger.shadowRoot?.querySelector('df-messenger-chat');
+              if (dfChat) {
+                const dfUserInput = dfChat.shadowRoot?.querySelector('df-messenger-user-input');
+                if (dfUserInput) {
+                  const inputElement = dfUserInput.shadowRoot?.querySelector('input');
+                  if (inputElement) {
+                    inputElement.value = phrase;
+                    inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+                    inputElement.focus();
+                  }
+                }
+              }
+            }, 300);
+          }
+        });
+
+        container.appendChild(div);
+      });
+    }
+  })();
 </script>
 
 </body>
